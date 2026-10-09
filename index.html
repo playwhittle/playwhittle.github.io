@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Whittle</title>
+<meta name="description" content="Whittle: a daily guessing game. One hidden answer, yes/no question cards, carve the board down to one.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column, a workshop wall behind a wooden board; the hand of cards sticks to the bottom while you play. */
+:root {
+  --wall: #1E140D;
+  --panel: #33241A;
+  --line: #5C4330;
+  --ink: #F3E6CF;
+  --muted: #BFA98A;
+  --gold: #E8B04B;
+  --gold-deep: #9C6F22;
+  --tile: #E0B27A;
+  --tile-edge: #A8723E;
+  --hollow: #5A3A20;
+  --hollow-ink: #9A7450;
+  --slab-a: #7F5230;
+  --slab-b: #93613A;
+  --frame: #4A3020;
+  --card: #F3E6CF;
+  --card-ink: #22170F;
+  --card-edge: #BFA98A;
+  --yes: #9CCB7A;
+  --no: #E8B04B;
+  --display: 'Silkscreen', 'Courier New', monospace;
+  --body: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.32) 0 2px, transparent 2px 97px),
+    repeating-linear-gradient(0deg, rgba(255,220,170,0.025) 0 1px, transparent 1px 7px),
+    var(--wall);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 32px; display: flex; flex-direction: column; gap: 18px; }
+.screen { display: flex; flex-direction: column; gap: 18px; }
+.label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.px { font-family: var(--display); }
+
+/* Shared controls */
+.btn-main {
+  display: block; width: 100%; border: none; background: var(--gold); color: var(--card-ink);
+  font-family: var(--display); font-size: 20px; padding: 16px; box-shadow: 0 6px 0 var(--gold-deep);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--gold-deep); }
+.btn-ghost {
+  background: transparent; border: 2px solid var(--line); color: var(--ink);
+  padding: 10px 14px; min-height: 44px; font-size: 13px;
+}
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-ghost[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; background: transparent; border: 2px solid var(--line); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* Title */
+.title-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+.block-art { position: relative; width: 180px; height: 170px; margin: 18px auto 0; }
+.block-art div { position: absolute; }
+.logo {
+  margin: 8px 0 0; text-align: center; font-family: var(--display); font-weight: 400;
+  font-size: clamp(44px, 14vw, 64px); line-height: 1; color: var(--gold);
+  text-shadow: 4px 4px 0 #7A4E2A; letter-spacing: 2px;
+}
+.tagline { text-align: center; margin: 0; color: #D9C6A6; }
+.today-card { border: 2px solid var(--line); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.today-card .v { font-family: var(--display); font-size: 20px; }
+.how { border: 2px solid var(--line); padding: 0 16px; }
+.how summary { padding: 12px 0; cursor: pointer; font-size: 13px; color: var(--muted); }
+.how ol { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; color: #D9C6A6; }
+
+/* Game header */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { border: 2px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; }
+.stat .v { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.banner { background: var(--panel); padding: 10px 12px; font-size: 13px; min-height: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.banner strong.yes { color: var(--yes); }
+.banner strong.no { color: var(--no); }
+.banner .actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* The wooden board */
+.slab {
+  position: relative; padding: 16px 14px; display: grid; gap: 7px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background:
+    radial-gradient(ellipse 34px 10px at 78% 18%, rgba(60,30,10,0.45), rgba(60,30,10,0.15) 55%, transparent 70%),
+    radial-gradient(ellipse 26px 8px at 18% 72%, rgba(60,30,10,0.4), rgba(60,30,10,0.12) 55%, transparent 70%),
+    repeating-linear-gradient(0deg, rgba(40,20,8,0.35) 0 2px, transparent 2px 66px),
+    repeating-linear-gradient(0deg, rgba(60,30,10,0.13) 0 1px, transparent 1px 5px, rgba(255,230,190,0.05) 5px 6px, transparent 6px 11px),
+    linear-gradient(90deg, var(--slab-a), var(--slab-b) 35%, #86582F 65%, var(--slab-b));
+  border: 3px solid var(--frame);
+  box-shadow: inset 0 2px 0 rgba(255,220,170,0.18), inset 0 -3px 0 rgba(0,0,0,0.3), 6px 6px 0 #2E1C10;
+}
+@media (min-width: 560px) { .slab { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+.nail { position: absolute; width: 6px; height: 6px; background: #3A2A20; box-shadow: inset 1px 1px 0 #9A8A7A; }
+.tile {
+  min-height: 44px; padding: 6px 3px; border: none; border-radius: 2px;
+  font-size: 10.5px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; hyphens: auto;
+  background:
+    repeating-linear-gradient(0deg, rgba(140,92,51,0.16) 0 1px, transparent 1px 4px, rgba(140,92,51,0.08) 4px 5px, transparent 5px 9px),
+    linear-gradient(180deg, #EBC48F, #D6A468);
+  color: var(--card-ink); font-weight: 600;
+  box-shadow: inset 0 2px 0 rgba(255,245,220,0.55), inset 0 -3px 0 var(--tile-edge), 0 3px 0 var(--frame), 0 4px 3px rgba(0,0,0,0.35);
+  cursor: default;
+}
+.tile.out {
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 4px), var(--hollow);
+  color: var(--hollow-ink); font-weight: 400; text-decoration: line-through;
+  box-shadow: inset 0 4px 5px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(255,220,170,0.12);
+}
+.tile.wrong { text-decoration: line-through; color: #C98A6A; }
+.tile.chip { animation: chip 420ms ease-out; }
+@keyframes chip {
+  0% { transform: translateY(0) rotate(0); filter: brightness(1.15); }
+  35% { transform: translateY(-4px) rotate(-3deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+.guessing .tile:not(.out) { cursor: pointer; outline: 2px dashed var(--gold); outline-offset: 1px; }
+.guessing .tile:not(.out):hover { filter: brightness(1.08); }
+.shaving { position: absolute; width: 10px; height: 4px; background: #E8C08A; pointer-events: none; animation: fall 700ms ease-in forwards; }
+@keyframes fall { to { transform: translate(var(--dx), 60px) rotate(var(--rot)); opacity: 0; } }
+
+/* Hand of cards */
+.hand-wrap {
+  position: sticky; bottom: 0; z-index: 2;
+  margin-inline: -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(30,20,13,0) 0, rgba(30,20,13,0.94) 18px, rgba(30,20,13,0.98));
+  display: flex; flex-direction: column; gap: 10px;
+}
+.hand-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.hand { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .hand { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.card {
+  background: var(--card); color: var(--card-ink); border: none; text-align: left;
+  padding: 10px 12px 12px; min-height: 84px; display: flex; flex-direction: column; gap: 4px;
+  box-shadow: 0 5px 0 var(--card-edge); transition: transform 90ms ease, box-shadow 90ms ease;
+}
+.card:hover { transform: translateY(-3px); box-shadow: 0 8px 0 var(--card-edge); }
+.card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--card-edge); }
+.card .k { font-family: var(--display); font-size: 12px; color: #8C5C33; }
+.card .q { font-size: 13px; line-height: 1.3; font-weight: 600; }
+.empty-hand { grid-column: 1 / -1; font-size: 13px; color: #D9C6A6; padding: 8px 0; }
+
+/* Result */
+.result-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.carving { width: 160px; height: 176px; image-rendering: pixelated; margin-top: 8px; }
+.answer { margin: 6px 0 0; font-family: var(--display); font-size: clamp(32px, 10vw, 46px); line-height: 1.05; color: var(--gold); text-shadow: 3px 3px 0 #7A4E2A; text-wrap: balance; }
+.verdict { margin: 0; color: #D9C6A6; max-width: 34ch; }
+.cuts { background: var(--panel); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.cut { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.cut .bar-track { height: 10px; background: rgba(0,0,0,0.25); }
+.cut .bar { height: 10px; background: var(--tile); }
+.cut .bar.miss { background: #C98A6A; }
+.cut .q { grid-column: 2 / -1; color: var(--muted); font-size: 11px; margin-top: -4px; }
+.notes { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-note { border: 1px solid var(--line); padding: 4px 8px; font-size: 11px; color: #D9C6A6; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.countdown { text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.copy-fallback { width: 100%; min-height: 110px; background: var(--panel); color: var(--ink); border: 2px solid var(--line); font: inherit; font-size: 13px; padding: 10px; }
+
+/* Shelf */
+.shelf-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.shelf-stats .stat { align-items: center; padding: 8px 4px; }
+.month { display: flex; flex-direction: column; gap: 14px; }
+.month h2 { margin: 0; font-family: var(--display); font-size: 16px; font-weight: 400; text-align: center; }
+.shelf-row { display: flex; flex-direction: column; }
+.slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 6px; align-items: end; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; border: none; padding: 0; }
+.slot canvas { width: 48px; height: 53px; image-rendering: pixelated; }
+.slot .date { font-size: 10px; color: var(--muted); }
+.slot .ghost { width: 40px; height: 40px; outline: 2px dashed #6E4A2B; outline-offset: -2px; }
+.slot .ghost.today { outline: 2px solid var(--gold); }
+.plank { height: 12px; background: linear-gradient(180deg, #93613A, #7F5230); box-shadow: 0 6px 0 #4A2E18; }
+.names { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 6px 0; }
+.names div { text-align: center; font-size: 10px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.names .t { font-size: 9px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; font-size: 10px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; display: inline-block; }
+
+/* Close-up view of one carving */
+button.slot { cursor: pointer; border-radius: 2px; }
+button.slot:hover canvas { transform: translateY(-3px); }
+button.slot canvas { transition: transform 120ms ease; }
+.viewer {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: rgba(12, 8, 5, 0.86); overflow-y: auto;
+}
+.viewer-card {
+  position: relative; width: 100%; max-width: 420px; padding: 20px 20px 24px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 6px),
+    var(--panel);
+  border: 3px solid var(--frame); box-shadow: 8px 8px 0 #120B06;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  animation: lift 220ms ease-out;
+}
+@keyframes lift { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.viewer-close { position: absolute; top: 10px; right: 10px; }
+.stage {
+  width: 100%; display: grid; place-items: center; padding: 18px 0 6px;
+  background: radial-gradient(ellipse 55% 60% at 50% 45%, rgba(255,214,150,0.18), transparent 70%);
+}
+.stage canvas { width: 220px; height: 242px; image-rendering: pixelated; }
+.viewer h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(26px, 8vw, 34px); color: var(--gold); text-wrap: balance; line-height: 1.1; }
+.viewer .meta { margin: 0; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+.viewer .score { margin: 0; font-size: 14px; }
+.viewer .trail { font-size: 20px; letter-spacing: 2px; }
+.viewer .notes { justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer-card { animation: none; }
+  .tile.chip, .shaving { animation: none; }
+  .shaving { display: none; }
+  .card, .btn-main { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <!-- Title screen -->
+  <section class="screen" id="screen-title">
+    <div class="title-meta"><span id="t-num">DAILY #001</span><span id="t-streak">STREAK 0</span></div>
+    <div class="block-art" aria-hidden="true">
+      <div style="left:30px;top:20px;width:120px;height:130px;background:#B07A45;box-shadow:8px 8px 0 #7A4E2A, inset 0 0 0 4px #8C5C33"></div>
+      <div style="left:46px;top:40px;width:88px;height:4px;background:#9A6638"></div>
+      <div style="left:46px;top:66px;width:60px;height:4px;background:#9A6638"></div>
+      <div style="left:70px;top:92px;width:64px;height:4px;background:#9A6638"></div>
+      <div style="left:46px;top:118px;width:44px;height:4px;background:#9A6638"></div>
+      <div style="left:118px;top:20px;width:32px;height:32px;background:var(--wall)"></div>
+      <div style="left:134px;top:52px;width:16px;height:16px;background:var(--wall)"></div>
+      <div style="left:150px;top:10px;width:14px;height:6px;background:#E0B27A;transform:rotate(-30deg)"></div>
+      <div style="left:162px;top:34px;width:10px;height:6px;background:#E0B27A;transform:rotate(25deg)"></div>
+      <div style="left:6px;top:150px;width:12px;height:6px;background:#E0B27A;transform:rotate(15deg)"></div>
+      <div style="left:140px;top:156px;width:16px;height:6px;background:#E0B27A;transform:rotate(-12deg)"></div>
+    </div>
+    <h1 class="logo">WHITTLE</h1>
+    <p class="tagline">Carve it down to one.</p>
+    <div class="today-card">
+      <div><div class="label">Today's block</div><div class="v" id="t-cat">COUNTRIES</div></div>
+      <div style="text-align:right"><div class="label">Par</div><div class="v" id="t-par">6</div></div>
+    </div>
+    <button class="btn-main" id="t-start">START CARVING</button>
+    <div class="row2">
+      <button class="btn-ghost" id="t-shelf">Your shelf</button>
+      <button class="btn-ghost" id="t-reset" hidden>Reset today</button>
+    </div>
+    <details class="how">
+      <summary>How to play</summary>
+      <ol>
+        <li>A hidden country sits somewhere on a board of 64.</li>
+        <li>Play a yes/no card from your hand. Every country that doesn't match gets carved away.</li>
+        <li>Guess a country any time. A guess counts as a question, and a wrong one costs 2.</li>
+        <li>Finish at or under par to earn today's carving. Over par, it stays a rough block for good.</li>
+        <li>A new block arrives at midnight.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- Game screen -->
+  <section class="screen" id="screen-game" hidden>
+    <div class="topbar">
+      <button class="icon-btn" id="g-back" aria-label="Back to title">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <span class="px" style="font-size:20px;color:var(--gold)">WHITTLE</span>
+      <span class="label" id="g-num">#001</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="label">Questions</span><span class="v" id="g-count">0</span></div>
+      <div class="stat"><span class="label">Par</span><span class="v" id="g-par">6</span></div>
+      <div class="stat"><span class="label">Left</span><span class="v" id="g-left">64</span></div>
+    </div>
+    <div class="banner" id="g-banner" role="status" aria-live="polite">Pick a card to start carving.</div>
+    <div class="slab" id="g-board" aria-label="Board">
+      <span class="nail" style="left:5px;top:5px"></span><span class="nail" style="right:5px;top:5px"></span>
+      <span class="nail" style="left:5px;bottom:5px"></span><span class="nail" style="right:5px;bottom:5px"></span>
+    </div>
+    <div class="hand-wrap">
+      <div class="hand-head">
+        <span class="label">Your hand · pick one</span>
+        <button class="btn-ghost" id="g-guess" aria-pressed="false">Guess</button>
+      </div>
+      <div class="hand" id="g-hand"></div>
+    </div>
+  </section>
+
+  <!-- Result screen -->
+  <section class="screen" id="screen-result" hidden>
+    <div class="topbar">
+      <button class="icon-btn" id="r-back" aria-label="Back to title">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <span class="label" id="r-num">WHITTLE #001 · COUNTRIES</span>
+      <span style="width:44px"></span>
+    </div>
+    <div class="result-head">
+      <canvas class="carving" id="r-carving" width="20" height="22" aria-hidden="true"></canvas>
+      <h1 class="answer" id="r-answer">PERU</h1>
+      <p class="verdict" id="r-verdict"></p>
+    </div>
+    <div class="stats">
+      <div class="stat" style="align-items:center"><span class="label">Questions</span><span class="v" id="r-count">5</span></div>
+      <div class="stat" style="align-items:center"><span class="label">Vs par</span><span class="v" id="r-vs">E</span></div>
+      <div class="stat" style="align-items:center"><span class="label">Streak</span><span class="v" id="r-streak">1</span></div>
+    </div>
+    <div class="cuts" id="r-cuts"></div>
+    <div>
+      <div class="label" style="margin-bottom:8px">Carving notes</div>
+      <div class="notes" id="r-notes"></div>
+    </div>
+    <div class="row2">
+      <button class="btn-main" id="r-share" style="font-size:16px;padding:14px">SHARE</button>
+      <button class="btn-ghost" id="r-shelf" style="font-family:var(--display);font-size:16px">SHELF</button>
+    </div>
+    <textarea class="copy-fallback" id="r-copy" readonly hidden aria-label="Result to copy"></textarea>
+    <div class="countdown" id="r-countdown">Next block in --:--:--</div>
+  </section>
+
+  <!-- Shelf screen -->
+  <section class="screen" id="screen-shelf" hidden>
+    <div class="topbar">
+      <button class="icon-btn" id="s-back" aria-label="Back to title">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <span class="px" style="font-size:22px;color:var(--gold)">YOUR SHELF</span>
+      <span style="width:44px"></span>
+    </div>
+    <div class="shelf-stats" id="s-stats"></div>
+    <div id="s-months" style="display:flex;flex-direction:column;gap:28px"></div>
+    <div class="legend">
+      <span><i style="background:var(--tile)"></i>Carved · at or under par</span>
+      <span><i style="background:#6E4A2B"></i>Rough · over par</span>
+      <span><i style="outline:1px dashed #6E4A2B"></i>Missed</span>
+    </div>
+  </section>
+</div>
+
+<div class="viewer" id="viewer" hidden>
+  <div class="viewer-card" role="dialog" aria-modal="true" aria-labelledby="v-name">
+    <button class="icon-btn viewer-close" id="v-close" aria-label="Close">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>
+    </button>
+    <span class="label" id="v-kind">Carved</span>
+    <div class="stage"><canvas id="v-carving" width="20" height="22" aria-hidden="true"></canvas></div>
+    <h2 id="v-name">Romania</h2>
+    <p class="meta" id="v-meta">WHITTLE #001 · OCTOBER 9, 2026</p>
+    <p class="score" id="v-score">6 questions · at par</p>
+    <div class="trail" id="v-trail" aria-hidden="true"></div>
+    <div class="notes" id="v-notes"></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
