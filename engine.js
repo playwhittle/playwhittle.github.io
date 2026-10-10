@@ -8,6 +8,8 @@
   const BOARD_SIZE = 64;
   const HAND_SIZE = 4;
   const WRONG_GUESS_COST = 2;
+  const FREE_SWAPS = 2;
+  const SWAP_COST = 1;
   const ANSWER_SEED = 0x5eed1e; // changing this reshuffles the whole answer schedule
 
   function rng(seed) {
@@ -65,8 +67,9 @@
     return puzzle;
   }
 
-  /* Rebuild the round from the player's actions: [{t:"q", id}, {t:"g", name}]. */
-  /* A card is only dealt while it can still split the board; dead cards are discarded for free. */
+  /* Rebuild the round from the player's actions: [{t:"q", id}, {t:"s", id}].
+     A card is only dealt while it can still split the board; dead cards are discarded for free.
+     A swapped card goes to the bottom of the deck, so a card that tells two finalists apart is never lost. */
   const splits = (q, list) => {
     const yes = list.filter((c) => q.test(c)).length;
     return yes > 0 && yes < list.length;
@@ -75,16 +78,25 @@
   function replay(puzzle, actions) {
     let remaining = puzzle.board.slice();
     let hand = [];
-    let next = 0;
+    let queue = puzzle.deck.slice();
     let count = 0;
+    let swaps = 0;
     let solved = false;
     const log = [];
     const wrong = [];
+    const drawLive = () => {
+      while (queue.length) {
+        const q = queue.shift();
+        if (splits(q, remaining)) return q;
+      }
+      return null;
+    };
     const refill = () => {
       hand = hand.filter((q) => splits(q, remaining));
-      while (hand.length < HAND_SIZE && next < puzzle.deck.length) {
-        const q = puzzle.deck[next++];
-        if (splits(q, remaining)) hand.push(q);
+      while (hand.length < HAND_SIZE) {
+        const q = drawLive();
+        if (!q) break;
+        hand.push(q);
       }
     };
     refill();
@@ -102,10 +114,21 @@
         log.push({ t: "q", q, truth, before, after: remaining.length });
         if (remaining.length === 1) solved = true;
         else refill();
-      } else if (act.t === "g") {
+      } else if (act.t === "s") {
+        const slot = hand.findIndex((h) => h.id === act.id);
+        if (slot < 0 || !queue.some((q) => splits(q, remaining))) continue;
+        const out = hand[slot];
+        const incoming = drawLive();
+        queue.push(out);
+        hand[slot] = incoming;
+        swaps += 1;
+        const cost = swaps > FREE_SWAPS ? SWAP_COST : 0;
+        count += cost;
+        log.push({ t: "s", out, incoming, cost, before: remaining.length, after: remaining.length });
+      } else if (act.t === "g") { // older saved rounds only; guessing has been removed
         if (!remaining.some((c) => c.name === act.name)) continue;
         if (act.name === puzzle.answer.name) {
-          count += 1; // a correct guess is still a question
+          count += 1;
           log.push({ t: "g", name: act.name, correct: true, before: remaining.length, after: 1 });
           remaining = [puzzle.answer];
           solved = true;
@@ -120,22 +143,27 @@
         }
       }
     }
-    return { remaining, hand, count, solved, log, wrong };
+    const canSwap = queue.some((q) => splits(q, remaining));
+    return { remaining, hand, count, solved, log, wrong, swaps, freeSwapsLeft: Math.max(0, FREE_SWAPS - swaps), canSwap };
   }
 
-  /* Par: what a careful player gets by always playing the card in hand with the most even split.
-     Random play reaches par a little over a third of the time; thoughtful play does much better. */
+  /* Par: a careful player who plays the card with the most even split, and spends a free swap
+     whenever their best card would leave most of the board standing either way. */
   function computePar(puzzle) {
     const actions = [];
-    for (let guard = 0; guard < 60; guard++) {
+    for (let guard = 0; guard < 80; guard++) {
       const s = replay(puzzle, actions);
       if (s.solved) return s.count;
-      if (s.hand.length === 0) return s.count + s.remaining.length - 1; // left to guessing
-      let best = s.hand[0], bestScore = -1;
+      let best = s.hand[0], bestScore = -1, worst = s.hand[0], worstScore = Infinity;
       for (const q of s.hand) {
         const yes = s.remaining.filter((c) => q.test(c)).length;
         const score = Math.min(yes, s.remaining.length - yes);
         if (score > bestScore) { best = q; bestScore = score; }
+        if (score < worstScore) { worst = q; worstScore = score; }
+      }
+      if (s.freeSwapsLeft > 0 && s.canSwap && s.remaining.length > 3 && bestScore < s.remaining.length * 0.3) {
+        actions.push({ t: "s", id: worst.id });
+        continue;
       }
       actions.push({ t: "q", id: best.id });
     }
@@ -146,7 +174,7 @@
     return count <= par ? "carved" : "rough";
   }
 
-  const api = { LAUNCH, BOARD_SIZE, HAND_SIZE, WRONG_GUESS_COST, rng, dayNumberFor, dateForDay, puzzleFor, replay, computePar, grade, poolSize: ANSWER_ORDER.length };
+  const api = { LAUNCH, BOARD_SIZE, HAND_SIZE, WRONG_GUESS_COST, FREE_SWAPS, SWAP_COST, rng, dayNumberFor, dateForDay, puzzleFor, replay, computePar, grade, poolSize: ANSWER_ORDER.length };
   if (typeof module !== "undefined") module.exports = api;
   else root.Whittle = api;
 })(typeof window !== "undefined" ? window : globalThis);

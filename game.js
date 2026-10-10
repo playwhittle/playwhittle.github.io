@@ -24,8 +24,12 @@
   const puzzleCache = { [today]: puzzle };
   const getPuzzle = (d) => puzzleCache[d] || (puzzleCache[d] = W.puzzleFor(d));
   const actionsFor = (d) => (store.days[d] && store.days[d].actions) || [];
+  /* The preview inside Claude is a test bench: it always offers Reset. */
+  const DEMO = !/github\.io$/.test(location.hostname);
+  let lastHand = [];
   let guessMode = false;
   let pendingGuess = null;
+  let dealing = false; // deal the hand card by card when the game screen opens
   let lastBanner = null;
 
   function stateFor(d) { return W.replay(getPuzzle(d), actionsFor(d)); }
@@ -46,6 +50,7 @@
   function shareLine(s) {
     const icons = s.log.map((e) => {
       if (e.t === "g") return e.correct ? "🎯" : "❌";
+      if (e.t === "s") return e.cost ? "🔁" : "";
       const f = (e.before - e.after) / e.before;
       return f >= 0.4 ? "🪓" : f >= 0.15 ? "🪵" : "🌿";
     }).join("");
@@ -65,14 +70,14 @@
     screens.forEach((s) => { $("screen-" + s).hidden = s !== name; });
     window.scrollTo(0, 0);
     if (name === "title") renderTitle();
-    if (name === "game") renderGame();
+    if (name === "game") { dealing = true; renderGame(); }
     if (name === "result") renderResult();
     if (name === "shelf") renderShelf();
   }
 
   function rollDayIfNeeded() {
     const d = W.dayNumberFor(new Date());
-    if (d !== today) { today = d; puzzle = getPuzzle(d); guessMode = false; pendingGuess = null; lastBanner = null; return true; }
+    if (d !== today) { today = d; puzzle = getPuzzle(d); lastBanner = null; lastHand = []; guessMode = false; pendingGuess = null; return true; }
     return false;
   }
 
@@ -85,7 +90,7 @@
     $("t-cat").textContent = puzzle.category.toUpperCase();
     $("t-par").textContent = puzzle.par;
     $("t-start").textContent = s.solved ? "SEE TODAY'S CARVING" : actionsFor(today).length ? "KEEP CARVING" : "START CARVING";
-    $("t-reset").hidden = !(location.hash === "#dev");
+    $("t-reset").hidden = !(location.hash === "#dev" || DEMO);
   }
 
   /* ---------- game ---------- */
@@ -118,24 +123,38 @@
 
     $("g-guess").setAttribute("aria-pressed", String(guessMode));
     $("g-guess").textContent = guessMode ? "Cancel guess" : "Guess";
+    const free = s.freeSwapsLeft;
+    $("g-swaps").textContent = free > 0 ? free + (free === 1 ? " free swap left" : " free swaps left") : "Swaps now cost 1 question";
+    $("g-swaps").classList.toggle("paid", free === 0);
 
     const hand = $("g-hand");
     hand.innerHTML = "";
-    if (s.hand.length === 0) {
-      const p = document.createElement("div");
-      p.className = "empty-hand";
-      p.textContent = "No cards left can split the board. Time to guess.";
-      hand.appendChild(p);
-    }
     s.hand.forEach((q, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "card-wrap" + (dealing ? " deal" : lastHand.length && !lastHand.includes(q.id) ? " drawn" : "");
+      if (dealing) {
+        wrap.style.setProperty("--d", (120 + i * 150) + "ms");
+        setTimeout(() => Sound.flick(), 120 + i * 150);
+      }
       const b = document.createElement("button");
       b.type = "button";
       b.className = "card";
       b.innerHTML = '<span class="k">CARD ' + "ABCD"[i] + '</span><span class="q"></span>';
       b.querySelector(".q").textContent = q.q;
       b.addEventListener("click", () => playCard(q.id));
-      hand.appendChild(b);
+      const sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "swap-btn";
+      sw.disabled = !s.canSwap;
+      sw.setAttribute("aria-label", "Swap this card" + (free > 0 ? " (free)" : " (costs 1 question)"));
+      sw.title = free > 0 ? "Swap (free)" : "Swap (costs 1 question)";
+      sw.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 5h9l-2.5-2.5M13 11H4l2.5 2.5"/></svg>';
+      sw.addEventListener("click", () => swapCard(q.id));
+      wrap.append(b, sw);
+      hand.appendChild(wrap);
     });
+    lastHand = s.hand.map((q) => q.id);
+    dealing = false;
     renderBanner(s);
   }
 
@@ -144,7 +163,7 @@
     el.innerHTML = "";
     if (pendingGuess) {
       const t = document.createElement("span");
-      t.innerHTML = "Guess <strong></strong>? A wrong guess costs " + W.WRONG_GUESS_COST + ".";
+      t.innerHTML = "Guess <strong></strong>? A wrong guess counts as " + W.WRONG_GUESS_COST + " questions.";
       t.querySelector("strong").textContent = pendingGuess;
       const a = document.createElement("span");
       a.className = "actions";
@@ -156,7 +175,7 @@
     }
     if (guessMode) { el.textContent = "Tap the country you want to guess."; return; }
     if (lastBanner) { el.innerHTML = lastBanner; return; }
-    el.textContent = s.log.length ? "Pick your next card." : "Pick a card to start carving.";
+    el.textContent = s.log.length ? "Pick your next card." : "Pick a card to start carving. Swap any card you don't like.";
   }
 
   function act(action) {
@@ -167,11 +186,21 @@
     const gone = new Set(before.remaining.filter((c) => !after.remaining.includes(c)).map((c) => c.name));
     const entry = after.log[after.log.length - 1];
     if (entry && entry.t === "q") {
+      Sound.knock();
+      Sound.carve((entry.before - entry.after) / entry.before);
+    } else if (entry && entry.t === "s") {
+      Sound.knock();
+    } else if (entry && entry.t === "g" && !entry.correct) {
+      Sound.thud();
+    }
+    if (entry && entry.t === "q") {
       const cut = entry.before - entry.after;
       lastBanner = '<span><strong class="' + (entry.truth ? "yes" : "no") + '">' + (entry.truth ? "Yes." : "No.") + "</strong> " +
         escapeHtml(entry.q.q) + " " + cut + (cut === 1 ? " tile" : " tiles") + " carved away.</span>";
     } else if (entry && entry.t === "g" && !entry.correct) {
-      lastBanner = '<span><strong class="no">Not ' + escapeHtml(entry.name) + ".</strong> That cost " + W.WRONG_GUESS_COST + " questions.</span>";
+      lastBanner = '<span><strong class="no">Not ' + escapeHtml(entry.name) + ".</strong> That counted as " + W.WRONG_GUESS_COST + " questions.</span>";
+    } else if (entry && entry.t === "s") {
+      lastBanner = "<span><strong>Swapped.</strong> " + (entry.cost ? "That swap cost 1 question." : "That one was free.") + "</span>";
     }
     if (after.solved) {
       lastBanner = null;
@@ -182,7 +211,11 @@
       $("g-hand").querySelectorAll("button").forEach((b) => { b.disabled = true; });
       $("g-banner").textContent = "Down to one. Polishing…";
       spawnShavings(gone);
-      setTimeout(() => show("result"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700);
+      const earned = resultFor(today);
+      setTimeout(() => {
+        show("result");
+        if (earned && earned.grade === "rough") Sound.rough(); else Sound.chime();
+      }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700);
       return;
     }
     renderGame(gone);
@@ -193,6 +226,11 @@
     if (rollDayIfNeeded()) { show("title"); return; }
     guessMode = false; pendingGuess = null;
     act({ t: "q", id });
+  }
+  function swapCard(id) {
+    if (rollDayIfNeeded()) { show("title"); return; }
+    guessMode = false; pendingGuess = null;
+    act({ t: "s", id });
   }
   function askGuess(name) {
     if (!guessMode) return;
@@ -320,11 +358,18 @@
 
     const cuts = $("r-cuts");
     cuts.innerHTML = '<span class="label">Your cuts</span>';
-    s.log.forEach((e, i) => {
+    let qn = 0;
+    s.log.forEach((e) => {
       const row = document.createElement("div");
       row.className = "cut";
+      if (e.t === "s") {
+        row.innerHTML = '<span class="label">Swap</span><span class="q" style="grid-column:2 / -1;margin:0"></span>';
+        row.querySelector(".q").textContent = "Swapped out “" + e.out.q + "”" + (e.cost ? " (cost 1)" : " (free)");
+        cuts.appendChild(row);
+        return;
+      }
       const pct = Math.round(((e.before - e.after) / puzzle.board.length) * 100);
-      const label = e.t === "q" ? "Q" + (i + 1) : e.correct ? "Hit" : "Miss";
+      const label = e.t === "q" ? "Q" + (++qn) : e.correct ? "Hit" : "Miss";
       row.innerHTML = '<span class="label">' + label + '</span><div class="bar-track"><div class="bar' + (e.t === "g" && !e.correct ? " miss" : "") + '"></div></div><span></span><span class="q"></span>';
       row.querySelector(".bar").style.width = Math.max(3, pct) + "%";
       row.children[2].textContent = e.before + " → " + e.after;
@@ -483,25 +528,132 @@
   }
   $("v-close").addEventListener("click", closeViewer);
   $("viewer").addEventListener("click", (e) => { if (e.target.id === "viewer") closeViewer(); });
+
+  /* ---------- how to play: opens by itself on a first visit ---------- */
+  const HOWTO_VERSION = 3; // raise this whenever the rules change, so returning players see them again
+  let howReturn = null;
+  function openHowto(from) {
+    howReturn = from || null;
+    drawCarving($("h-carved"), "Peru", "carved");
+    drawCarving($("h-rough"), "Peru", "rough");
+    $("howto").hidden = false;
+    $("h-go").focus();
+  }
+  function closeHowto() {
+    if ($("howto").hidden) return;
+    $("howto").hidden = true;
+    if (store.seenHowTo !== HOWTO_VERSION) { store.seenHowTo = HOWTO_VERSION; save(); }
+    if (howReturn) howReturn.focus();
+  }
+  $("h-close").addEventListener("click", closeHowto);
+  $("h-go").addEventListener("click", closeHowto);
+  $("howto").addEventListener("click", (e) => { if (e.target.id === "howto") closeHowto(); });
+  $("t-how").addEventListener("click", (e) => openHowto(e.currentTarget));
+  $("g-how").addEventListener("click", (e) => openHowto(e.currentTarget));
+
   document.addEventListener("keydown", (e) => {
-    if ($("viewer").hidden) return;
-    if (e.key === "Escape") closeViewer();
-    if (e.key === "Tab") { e.preventDefault(); $("v-close").focus(); }
+    const open = !$("howto").hidden ? "howto" : !$("viewer").hidden ? "viewer" : null;
+    if (!open) return;
+    if (e.key === "Escape") { open === "howto" ? closeHowto() : closeViewer(); return; }
+    if (e.key === "Tab") {
+      const items = [...$(open).querySelectorAll("button")];
+      const i = items.indexOf(document.activeElement);
+      e.preventDefault();
+      items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length].focus();
+    }
   });
+
+  /* ---------- sound: made in code, off until the player turns it on ---------- */
+  const Sound = (() => {
+    let ctx = null, master = null, noiseBuf = null;
+    function ready() {
+      if (!store.sound) return false;
+      try {
+        if (!ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return false;
+          ctx = new AC();
+          master = ctx.createGain(); master.gain.value = 0.45; master.connect(ctx.destination);
+          noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        if (ctx.state === "suspended") ctx.resume();
+        return true;
+      } catch (e) { return false; }
+    }
+    function tone(freq, endFreq, dur, type, vol, at) {
+      const t = ctx.currentTime + (at || 0);
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    }
+    function noise(freq, q, dur, vol, at, sweepTo) {
+      const t = ctx.currentTime + (at || 0);
+      const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noiseBuf; f.type = "bandpass"; f.Q.value = q; f.frequency.setValueAtTime(freq, t);
+      if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.02);
+    }
+    return {
+      knock() { if (!ready()) return; tone(190, 95, 0.12, "triangle", 0.5); noise(1300, 5, 0.05, 0.35); },
+      carve(share) { // share: fraction of the board removed by this cut
+        if (!ready()) return;
+        const chips = share >= 0.4 ? 4 : share >= 0.15 ? 3 : 2;
+        for (let i = 0; i < chips; i++) noise(2600 - i * 250, 3, 0.09, 0.28, 0.09 + i * 0.06, 1100);
+        noise(900, 1.5, 0.25, 0.12, 0.09, 500);
+      },
+      flick() { if (!ready()) return; noise(3200, 1.2, 0.06, 0.22, 0, 1800); tone(520, 300, 0.05, "triangle", 0.08); },
+      thud() { if (!ready()) return; tone(110, 55, 0.3, "sine", 0.6); noise(400, 2, 0.12, 0.25); },
+      chime() {
+        if (!ready()) return;
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+          tone(f, null, 0.6, "sine", 0.3, i * 0.09);
+          tone(f * 4, null, 0.08, "sine", 0.05, i * 0.09);
+        });
+      },
+      rough() { if (!ready()) return; tone(140, 80, 0.18, "triangle", 0.45); tone(120, 70, 0.22, "triangle", 0.4, 0.16); }
+    };
+  })();
+
+  function renderSoundButtons() {
+    ["t-sound", "g-sound"].forEach((id) => {
+      const b = $(id);
+      b.setAttribute("aria-pressed", String(!!store.sound));
+      b.setAttribute("aria-label", store.sound ? "Sound on. Turn off" : "Sound off. Turn on");
+      b.querySelector(".on").style.display = store.sound ? "" : "none";
+      b.querySelector(".off").style.display = store.sound ? "none" : "";
+    });
+  }
+  ["t-sound", "g-sound"].forEach((id) => $(id).addEventListener("click", () => {
+    store.sound = !store.sound;
+    save();
+    renderSoundButtons();
+    Sound.knock();
+  }));
+  renderSoundButtons();
 
   /* ---------- helpers & wiring ---------- */
   function escapeHtml(s) { return s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch])); }
 
   $("t-start").addEventListener("click", () => show(resultFor(today) ? "result" : "game"));
   $("t-shelf").addEventListener("click", () => show("shelf"));
-  $("t-reset").addEventListener("click", () => { delete store.days[today]; save(); lastBanner = null; show("title"); });
+  $("t-reset").addEventListener("click", () => { delete store.days[today]; save(); lastBanner = null; lastHand = []; show("title"); });
   $("g-back").addEventListener("click", () => show("title"));
   $("r-back").addEventListener("click", () => show("title"));
   $("s-back").addEventListener("click", () => show("title"));
   $("r-share").addEventListener("click", share);
-  $("r-shelf").addEventListener("click", () => show("shelf"));
   $("g-guess").addEventListener("click", () => { guessMode = !guessMode; pendingGuess = null; renderGame(); });
+  $("r-shelf").addEventListener("click", () => show("shelf"));
   document.addEventListener("visibilitychange", () => { if (!document.hidden && rollDayIfNeeded()) show("title"); });
 
   show("title");
+  if (store.seenHowTo !== HOWTO_VERSION) openHowto($("t-start"));
 })();
