@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Whittle</title>
-<meta name="description" content="Whittle: a daily guessing game. One hidden answer, yes/no question cards, carve the board down to one.">
+<meta name="description" content="Whittle: a daily game of 20 questions. Ask yes/no questions in your own words and name the hidden animal.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one narrow column, a workshop wall behind a wooden board; the hand of cards sticks to the bottom while you play. */
+/* Layout: one narrow column; a woodcarver's bench at the top, your questions below, and the question box pinned to the bottom while you play. */
 :root {
   --wall: #1E140D;
   --panel: #33241A;
@@ -94,111 +94,62 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .stat { border: 2px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; }
 .stat .v { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
-.banner { background: var(--panel); padding: 10px 12px; font-size: 13px; min-height: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.banner strong.yes { color: var(--yes); }
-.banner strong.no { color: var(--no); }
-.banner .actions { display: flex; gap: 8px; margin-left: auto; }
 
-/* The wooden board */
-.slab {
-  position: relative; padding: 16px 14px; display: grid; gap: 7px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  background:
-    radial-gradient(ellipse 34px 10px at 78% 18%, rgba(60,30,10,0.45), rgba(60,30,10,0.15) 55%, transparent 70%),
-    radial-gradient(ellipse 26px 8px at 18% 72%, rgba(60,30,10,0.4), rgba(60,30,10,0.12) 55%, transparent 70%),
-    repeating-linear-gradient(0deg, rgba(40,20,8,0.35) 0 2px, transparent 2px 66px),
-    repeating-linear-gradient(0deg, rgba(60,30,10,0.13) 0 1px, transparent 1px 5px, rgba(255,230,190,0.05) 5px 6px, transparent 6px 11px),
-    linear-gradient(90deg, var(--slab-a), var(--slab-b) 35%, #86582F 65%, var(--slab-b));
-  border: 3px solid var(--frame);
-  box-shadow: inset 0 2px 0 rgba(255,220,170,0.18), inset 0 -3px 0 rgba(0,0,0,0.3), 6px 6px 0 #2E1C10;
-}
-@media (min-width: 560px) { .slab { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
-.nail { position: absolute; width: 6px; height: 6px; background: #3A2A20; box-shadow: inset 1px 1px 0 #9A8A7A; }
-.tile {
-  min-height: 44px; padding: 6px 3px; border: none; border-radius: 2px;
-  font-size: 10.5px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; hyphens: auto;
-  background:
-    repeating-linear-gradient(0deg, rgba(140,92,51,0.16) 0 1px, transparent 1px 4px, rgba(140,92,51,0.08) 4px 5px, transparent 5px 9px),
-    linear-gradient(180deg, #EBC48F, #D6A468);
-  color: var(--card-ink); font-weight: 600;
-  box-shadow: inset 0 2px 0 rgba(255,245,220,0.55), inset 0 -3px 0 var(--tile-edge), 0 3px 0 var(--frame), 0 4px 3px rgba(0,0,0,0.35);
-  cursor: default;
-}
-.tile.out {
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 4px), var(--hollow);
-  color: var(--hollow-ink); font-weight: 400; text-decoration: line-through;
-  box-shadow: inset 0 4px 5px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(255,220,170,0.12);
-}
-.tile.wrong { text-decoration: line-through; color: #C98A6A; }
-.tile.chip { animation: chip 420ms ease-out; }
-@keyframes chip {
-  0% { transform: translateY(0) rotate(0); filter: brightness(1.15); }
-  35% { transform: translateY(-4px) rotate(-3deg); }
-  100% { transform: translateY(0) rotate(0); }
-}
-.guessing .tile:not(.out) { cursor: pointer; outline: 2px dashed var(--gold); outline-offset: 1px; }
-.guessing .tile:not(.out):hover { filter: brightness(1.08); }
-.shaving { position: absolute; width: 10px; height: 4px; background: #E8C08A; pointer-events: none; animation: fall 700ms ease-in forwards; }
-@keyframes fall { to { transform: translate(var(--dx), 60px) rotate(var(--rot)); opacity: 0; } }
+/* The carver's bench: he works harder the closer you get */
+.scene { border: 3px solid var(--frame); background: #150E09; box-shadow: 6px 6px 0 #0E0905; }
+.scene canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; }
+.scene-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; padding: 8px 12px; background: var(--panel); border-top: 2px solid var(--frame); flex-wrap: wrap; }
+.caption { margin: 0; font-size: 12.5px; color: #D9C6A6; flex: 1 1 220px; min-width: 0; }
+.heat { display: flex; align-items: center; gap: 4px; }
+.heat i { width: 9px; height: 14px; background: #3A2A20; display: inline-block; }
+.heat i.on { background: linear-gradient(180deg, #FFD27A, #E8742F); box-shadow: 0 0 6px rgba(232,116,47,0.6); }
+.heat .word { font-family: var(--display); font-size: 12px; color: var(--gold); margin-left: 6px; min-width: 7ch; }
 
-/* Hand of cards */
-.hand-wrap {
+/* Your questions so far */
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.log li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; background: var(--panel); font-size: 13px; }
+.log .n { font-family: var(--display); color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.log li.flash { animation: flash 900ms ease-out; }
+@keyframes flash { 0% { background: #5C4330; } 100% { background: var(--panel); } }
+.ans { font-family: var(--display); font-size: 12px; padding: 3px 8px; white-space: nowrap; }
+.ans.Y { background: #2F4A26; color: #C6E8AE; }
+.ans.N { background: #4E2A1E; color: #F5BCA2; }
+.ans.S { background: #4C401D; color: #F2DB9C; }
+.ans.miss { background: #3A2A20; color: #F5BCA2; }
+.ans.hit { background: var(--gold); color: var(--card-ink); }
+.starter { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 2px dashed var(--line); }
+.starter p { margin: 0; font-size: 13px; color: #D9C6A6; }
+.starter .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn { background: transparent; border: 2px solid var(--line); color: var(--ink); padding: 6px 10px; font-size: 12.5px; min-height: 40px; }
+.chip-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* The question box */
+.ask {
   position: sticky; bottom: 0; z-index: 2;
-  margin-inline: -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, rgba(30,20,13,0) 0, rgba(30,20,13,0.94) 18px, rgba(30,20,13,0.98));
-  display: flex; flex-direction: column; gap: 10px;
+  margin-inline: -16px; padding: 14px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(30,20,13,0) 0, rgba(30,20,13,0.95) 16px, rgba(30,20,13,0.99));
+  display: flex; flex-direction: column; gap: 8px;
 }
-.hand-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.hand { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-@media (min-width: 560px) { .hand { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.card {
-  background: var(--card); color: var(--card-ink); border: none; text-align: left;
-  padding: 10px 12px 12px; min-height: 84px; display: flex; flex-direction: column; gap: 4px;
-  box-shadow: 0 5px 0 var(--card-edge); transition: transform 90ms ease, box-shadow 90ms ease;
+.ask-row { display: flex; gap: 8px; }
+.ask input {
+  flex: 1; min-width: 0; min-height: 50px; padding: 10px 12px; border: none; border-radius: 0;
+  background: var(--card); color: var(--card-ink); font: inherit; font-size: 15px; box-shadow: 0 4px 0 var(--card-edge);
 }
-.card:hover { transform: translateY(-3px); box-shadow: 0 8px 0 var(--card-edge); }
-.card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--card-edge); }
-.card .k { font-family: var(--display); font-size: 12px; color: #8C5C33; }
-.card .q { font-size: 13px; line-height: 1.3; font-weight: 600; }
-.empty-hand { grid-column: 1 / -1; font-size: 13px; color: #D9C6A6; padding: 8px 0; }
-
-/* Swapping a card */
-.card-wrap { position: relative; display: flex; }
-.card-wrap .card { flex: 1; padding-right: 46px; }
-.swap-btn {
-  position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; display: grid; place-items: center;
-  background: transparent; border: 2px solid #CDB68F; color: #8C5C33; border-radius: 2px;
+.ask input::placeholder { color: #8A7358; }
+.ask input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.ask .send { width: auto; padding: 0 16px; font-size: 15px; box-shadow: 0 4px 0 var(--gold-deep); }
+.ask-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+.sugg { display: flex; flex-direction: column; gap: 6px; }
+.sugg button {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left;
+  background: #2A1D14; border: 2px solid var(--line); color: var(--ink); padding: 8px 10px; font-size: 13px; min-height: 42px;
 }
-.swap-btn svg { width: 15px; height: 15px; }
-.swap-btn:hover:not(:disabled) { background: #E8D6B3; }
-.swap-btn:disabled { opacity: 0.35; cursor: default; }
-.swaps { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
-.swaps.paid { color: var(--gold); }
-/* The hand sits in a gentle arc: every card tilted a little, none overlapping */
-.card-wrap { --r: 0deg; --y: 0px; transform: translateY(var(--y)) rotate(var(--r)); transition: transform 150ms ease; transform-origin: 50% 100%; }
-.hand .card-wrap:nth-child(1) { --r: -3deg; }
-.hand .card-wrap:nth-child(2) { --r: 2.5deg; }
-.hand .card-wrap:nth-child(3) { --r: -2deg; }
-.hand .card-wrap:nth-child(4) { --r: 3deg; }
-@media (min-width: 560px) {
-  .hand { padding-top: 10px; }
-  .hand .card-wrap:nth-child(1) { --r: -7deg; --y: 12px; }
-  .hand .card-wrap:nth-child(2) { --r: -2.5deg; --y: 2px; }
-  .hand .card-wrap:nth-child(3) { --r: 2.5deg; --y: 2px; }
-  .hand .card-wrap:nth-child(4) { --r: 7deg; --y: 12px; }
-}
-@media (hover: hover) {
-  .card-wrap:hover { transform: translateY(calc(var(--y) - 14px)) rotate(0deg); z-index: 1; }
-  .card-wrap .card:hover { transform: none; box-shadow: 0 8px 0 var(--card-edge); }
-}
-.card-wrap.drawn { animation: drawIn 360ms ease-out backwards; }
-@keyframes drawIn { from { transform: translateY(calc(var(--y) + 18px)) rotate(var(--r)); opacity: 0; } }
-.card-wrap.deal { animation: deal 480ms cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards; animation-delay: var(--d, 0ms); }
-@keyframes deal {
-  0% { transform: translate(140px, -260px) rotate(24deg); opacity: 0; }
-  40% { opacity: 1; }
-  100% { transform: translateY(var(--y)) rotate(var(--r)); opacity: 1; }
-}
+.sugg button:hover, .sugg button.top { border-color: var(--gold); }
+.sugg small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sugg .guess small { color: var(--gold); }
+.ask-msg { margin: 0; font-size: 12.5px; color: #D9C6A6; }
+.warn { border: 2px solid var(--gold); background: #2A1D14; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.warn .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Result */
 .result-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
@@ -206,11 +157,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .answer { margin: 6px 0 0; font-family: var(--display); font-size: clamp(32px, 10vw, 46px); line-height: 1.05; color: var(--gold); text-shadow: 3px 3px 0 #7A4E2A; text-wrap: balance; }
 .verdict { margin: 0; color: #D9C6A6; max-width: 34ch; }
 .cuts { background: var(--panel); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.cut { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.cut .bar-track { height: 10px; background: rgba(0,0,0,0.25); }
-.cut .bar { height: 10px; background: var(--tile); }
-.cut .bar.miss { background: #C98A6A; }
-.cut .q { grid-column: 2 / -1; color: var(--muted); font-size: 11px; margin-top: -4px; }
+.cut { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .notes { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-note { border: 1px solid var(--line); padding: 4px 8px; font-size: 11px; color: #D9C6A6; }
 .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -276,11 +223,8 @@ button.slot canvas { transition: transform 120ms ease; }
 .steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; color: #D9C6A6; }
 .steps .n { font-family: var(--display); color: var(--gold); font-size: 16px; line-height: 1.4; }
 .steps strong { color: var(--ink); }
-.demo { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.demo-card { align-self: flex-start; background: var(--card); color: var(--card-ink); padding: 6px 10px; font-size: 12px; font-weight: 600; box-shadow: 0 3px 0 var(--card-edge); }
-.demo-card b { color: #8C5C33; margin-left: 6px; }
-.demo-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 8px; background: linear-gradient(90deg, var(--slab-a), var(--slab-b)); border: 2px solid var(--frame); }
-.demo-board .tile { min-height: 30px; font-size: 10px; padding: 4px 2px; }
+.demo-q { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.demo-q span { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #2A1D14; padding: 6px 10px; font-size: 12.5px; color: var(--ink); }
 .demo-carvings { display: flex; gap: 22px; margin-top: 10px; }
 .demo-carvings > span { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .demo-carvings canvas { width: 60px; height: 66px; image-rendering: pixelated; }
@@ -288,11 +232,8 @@ button.slot canvas { transition: transform 120ms ease; }
 .howto-foot { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
-  .viewer-card { animation: none; }
-  .tile.chip, .shaving { animation: none; }
-  .shaving { display: none; }
-  .card, .btn-main, .card-wrap { transition: none; }
-  .card-wrap.drawn, .card-wrap.deal { animation: none; }
+  .viewer-card, .log li.flash { animation: none; }
+  .btn-main { transition: none; }
 }
 </style>
 </head>
@@ -324,9 +265,9 @@ button.slot canvas { transition: transform 120ms ease; }
       <div style="left:140px;top:156px;width:16px;height:6px;background:#E0B27A;transform:rotate(-12deg)"></div>
     </div>
     <h1 class="logo">WHITTLE</h1>
-    <p class="tagline">Carve it down to one.</p>
+    <p class="tagline">Twenty questions. One hidden animal.</p>
     <div class="today-card">
-      <div><div class="label">Today's block</div><div class="v" id="t-cat">COUNTRIES</div></div>
+      <div><div class="label">Today's block</div><div class="v" id="t-cat">ANIMALS</div></div>
       <div style="text-align:right"><div class="label">Par</div><div class="v" id="t-par">6</div></div>
     </div>
     <button class="btn-main" id="t-start">START CARVING</button>
@@ -354,27 +295,35 @@ button.slot canvas { transition: transform 120ms ease; }
         </button>
       </span>
     </div>
-    <span class="label" id="g-num" style="text-align:center;margin-top:-8px">#001</span>
+    <span class="label" id="g-num" style="text-align:center;margin-top:-8px">#001 · ANIMALS</span>
     <div class="stats">
-      <div class="stat"><span class="label">Questions</span><span class="v" id="g-count">0</span></div>
-      <div class="stat"><span class="label">Par</span><span class="v" id="g-par">6</span></div>
-      <div class="stat"><span class="label">Left</span><span class="v" id="g-left">64</span></div>
+      <div class="stat"><span class="label">Questions</span><span class="v" id="g-count">0/20</span></div>
+      <div class="stat"><span class="label">Par</span><span class="v" id="g-par">10</span></div>
+      <div class="stat"><span class="label">Left</span><span class="v" id="g-left">20</span></div>
     </div>
-    <div class="banner" id="g-banner" role="status" aria-live="polite">Pick a card to start carving.</div>
-    <div class="slab" id="g-board" aria-label="Board">
-      <span class="nail" style="left:5px;top:5px"></span><span class="nail" style="right:5px;top:5px"></span>
-      <span class="nail" style="left:5px;bottom:5px"></span><span class="nail" style="right:5px;bottom:5px"></span>
-    </div>
-    <div class="hand-wrap">
-      <div class="hand-head">
-        <span class="label">Your hand · pick one</span>
-        <span style="display:flex;align-items:center;gap:10px">
-          <span class="swaps" id="g-swaps">2 free swaps left</span>
-          <button class="btn-ghost" id="g-guess" aria-pressed="false">Guess</button>
-        </span>
+    <div class="scene">
+      <canvas id="g-scene" width="200" height="100" role="img" aria-label="A woodcarver at his bench"></canvas>
+      <div class="scene-foot">
+        <p class="caption" id="g-caption" aria-live="polite">The carver is waiting for something to go on.</p>
+        <div class="heat" id="g-heat" aria-label="Warmth"><i></i><i></i><i></i><i></i><i></i><span class="word" id="g-heat-word">COLD</span></div>
       </div>
-      <div class="hand" id="g-hand"></div>
     </div>
+    <div class="starter" id="g-starter">
+      <p>Today's answer is an animal. Ask a yes/no question in your own words, or try one of these:</p>
+      <div class="chips" id="g-chips"></div>
+    </div>
+    <ol class="log" id="g-log" aria-label="Your questions"></ol>
+    <form class="ask" id="g-ask" autocomplete="off">
+      <div class="ask-meta"><span>Ask a yes/no question, or type an animal to guess</span></div>
+      <div class="ask-row">
+        <label for="g-input" class="label" style="position:absolute;left:-9999px">Your question or guess</label>
+        <input id="g-input" type="text" maxlength="120" placeholder="Can it fly?" enterkeyhint="send" autocapitalize="sentences">
+        <button class="btn-main send" type="submit">ASK</button>
+      </div>
+      <div class="sugg" id="g-sugg" role="listbox" aria-label="Suggestions"></div>
+      <p class="ask-msg" id="g-msg" role="status" aria-live="polite" hidden></p>
+      <div class="warn" id="g-warn" hidden></div>
+    </form>
   </section>
 
   <!-- Result screen -->
@@ -383,7 +332,7 @@ button.slot canvas { transition: transform 120ms ease; }
       <button class="icon-btn" id="r-back" aria-label="Back to title">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
       </button>
-      <span class="label" id="r-num">WHITTLE #001 · COUNTRIES</span>
+      <span class="label" id="r-num">WHITTLE #001 · ANIMALS</span>
       <span style="width:44px"></span>
     </div>
     <div class="result-head">
@@ -434,19 +383,17 @@ button.slot canvas { transition: transform 120ms ease; }
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>
     </button>
     <h2 id="h-title">HOW TO PLAY</h2>
-    <p class="howto-lead">Whittle a board of 64 countries down to the hidden one, in as few questions as you can.</p>
+    <p class="howto-lead">It's 20 Questions with a hidden animal. Find it in as few questions as you can.</p>
     <ol class="steps">
-      <li><span class="n">1</span><span><strong>Pick a yes/no card.</strong> Countries that don't match get carved away.
-        <span class="demo" aria-hidden="true">
-          <span class="demo-card">Is it in Europe? <b>NO</b></span>
-          <span class="demo-board">
-            <span class="tile out">France</span><span class="tile">Peru</span><span class="tile out">Italy</span>
-            <span class="tile">Japan</span><span class="tile out">Spain</span><span class="tile">Kenya</span>
-          </span>
+      <li><span class="n">1</span><span><strong>Ask anything yes/no</strong>, in your own words. You'll get Yes, No or Sometimes.
+        <span class="demo-q" aria-hidden="true">
+          <span>Is it a mammal? <b class="ans N">NO</b></span>
+          <span>Does it live in water? <b class="ans Y">YES</b></span>
         </span>
       </span></li>
-      <li><span class="n">2</span><span><strong>Swap weak cards.</strong> Not every card is a good cut. Tap the arrows on a card to trade it for a new one. Your first 2 swaps are free; after that, each swap counts as a question.</span></li>
-      <li><span class="n">3</span><span><strong>Carve down to one, or guess.</strong> Think you know it? Tap Guess and pick a country. A guess counts as a question, and a wrong one counts as two. <strong>Earn the carving:</strong> Finish at or under par and the last block left is carved into a one-of-a-kind figure for your shelf. Go over par and it stays a rough block for good.
+      <li><span class="n">2</span><span><strong>Watch the carver.</strong> The closer you get, the harder he works on the block.</span></li>
+      <li><span class="n">3</span><span><strong>Guess when you know it.</strong> Just type the animal. Every question and every guess counts, and you have 20.</span></li>
+      <li><span class="n">4</span><span><strong>Earn the carving.</strong> Solve it at or under par and the carver finishes it for your shelf. Over par, it stays a rough block for good.
         <span class="demo-carvings" aria-hidden="true">
           <span><canvas id="h-carved" width="20" height="22"></canvas><small>At or under par</small></span>
           <span><canvas id="h-rough" width="20" height="22"></canvas><small>Over par</small></span>
@@ -454,7 +401,7 @@ button.slot canvas { transition: transform 120ms ease; }
       </span></li>
     </ol>
     <button class="btn-main" id="h-go" style="font-size:16px;padding:14px">GOT IT</button>
-    <p class="howto-foot">A new block arrives every day at midnight.</p>
+    <p class="howto-foot">A new animal arrives every day at midnight.</p>
   </div>
 </div>
 
