@@ -50,7 +50,7 @@ body {
 }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 32px; display: flex; flex-direction: column; gap: 18px; }
+.wrap { overflow-x: clip; max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 32px; display: flex; flex-direction: column; gap: 18px; }
 .screen { display: flex; flex-direction: column; gap: 18px; }
 .label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .px { font-family: var(--display); }
@@ -71,6 +71,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; background: transparent; border: 2px solid var(--line); }
 .icon-btn svg { width: 16px; height: 16px; }
+.sound-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.title-meta { align-items: center; }
 
 /* Title */
 .title-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
@@ -160,6 +162,44 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .card .q { font-size: 13px; line-height: 1.3; font-weight: 600; }
 .empty-hand { grid-column: 1 / -1; font-size: 13px; color: #D9C6A6; padding: 8px 0; }
 
+/* Swapping a card */
+.card-wrap { position: relative; display: flex; }
+.card-wrap .card { flex: 1; padding-right: 46px; }
+.swap-btn {
+  position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; display: grid; place-items: center;
+  background: transparent; border: 2px solid #CDB68F; color: #8C5C33; border-radius: 2px;
+}
+.swap-btn svg { width: 15px; height: 15px; }
+.swap-btn:hover:not(:disabled) { background: #E8D6B3; }
+.swap-btn:disabled { opacity: 0.35; cursor: default; }
+.swaps { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+.swaps.paid { color: var(--gold); }
+/* The hand sits in a gentle arc: every card tilted a little, none overlapping */
+.card-wrap { --r: 0deg; --y: 0px; transform: translateY(var(--y)) rotate(var(--r)); transition: transform 150ms ease; transform-origin: 50% 100%; }
+.hand .card-wrap:nth-child(1) { --r: -3deg; }
+.hand .card-wrap:nth-child(2) { --r: 2.5deg; }
+.hand .card-wrap:nth-child(3) { --r: -2deg; }
+.hand .card-wrap:nth-child(4) { --r: 3deg; }
+@media (min-width: 560px) {
+  .hand { padding-top: 10px; }
+  .hand .card-wrap:nth-child(1) { --r: -7deg; --y: 12px; }
+  .hand .card-wrap:nth-child(2) { --r: -2.5deg; --y: 2px; }
+  .hand .card-wrap:nth-child(3) { --r: 2.5deg; --y: 2px; }
+  .hand .card-wrap:nth-child(4) { --r: 7deg; --y: 12px; }
+}
+@media (hover: hover) {
+  .card-wrap:hover { transform: translateY(calc(var(--y) - 14px)) rotate(0deg); z-index: 1; }
+  .card-wrap .card:hover { transform: none; box-shadow: 0 8px 0 var(--card-edge); }
+}
+.card-wrap.drawn { animation: drawIn 360ms ease-out backwards; }
+@keyframes drawIn { from { transform: translateY(calc(var(--y) + 18px)) rotate(var(--r)); opacity: 0; } }
+.card-wrap.deal { animation: deal 480ms cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards; animation-delay: var(--d, 0ms); }
+@keyframes deal {
+  0% { transform: translate(140px, -260px) rotate(24deg); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(var(--y)) rotate(var(--r)); opacity: 1; }
+}
+
 /* Result */
 .result-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .carving { width: 160px; height: 176px; image-rendering: pixelated; margin-top: 8px; }
@@ -228,11 +268,31 @@ button.slot canvas { transition: transform 120ms ease; }
 .viewer .trail { font-size: 20px; letter-spacing: 2px; }
 .viewer .notes { justify-content: center; }
 
+/* How to play */
+.howto-card { text-align: left; align-items: stretch; gap: 16px; }
+.howto-card h2 { text-align: center; }
+.howto-lead { margin: 0; text-align: center; color: var(--ink); font-size: 15px; }
+.steps { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; color: #D9C6A6; }
+.steps .n { font-family: var(--display); color: var(--gold); font-size: 16px; line-height: 1.4; }
+.steps strong { color: var(--ink); }
+.demo { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.demo-card { align-self: flex-start; background: var(--card); color: var(--card-ink); padding: 6px 10px; font-size: 12px; font-weight: 600; box-shadow: 0 3px 0 var(--card-edge); }
+.demo-card b { color: #8C5C33; margin-left: 6px; }
+.demo-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 8px; background: linear-gradient(90deg, var(--slab-a), var(--slab-b)); border: 2px solid var(--frame); }
+.demo-board .tile { min-height: 30px; font-size: 10px; padding: 4px 2px; }
+.demo-carvings { display: flex; gap: 22px; margin-top: 10px; }
+.demo-carvings > span { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.demo-carvings canvas { width: 60px; height: 66px; image-rendering: pixelated; }
+.demo-carvings small { font-size: 10px; color: var(--muted); }
+.howto-foot { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
+
 @media (prefers-reduced-motion: reduce) {
   .viewer-card { animation: none; }
   .tile.chip, .shaving { animation: none; }
   .shaving { display: none; }
-  .card, .btn-main { transition: none; }
+  .card, .btn-main, .card-wrap { transition: none; }
+  .card-wrap.drawn, .card-wrap.deal { animation: none; }
 }
 </style>
 </head>
@@ -241,7 +301,15 @@ button.slot canvas { transition: transform 120ms ease; }
 
   <!-- Title screen -->
   <section class="screen" id="screen-title">
-    <div class="title-meta"><span id="t-num">DAILY #001</span><span id="t-streak">STREAK 0</span></div>
+    <div class="title-meta">
+      <span id="t-num">DAILY #001</span>
+      <span style="display:flex;align-items:center;gap:12px"><span id="t-streak">STREAK 0</span>
+        <button class="icon-btn sound-btn" id="t-sound" aria-pressed="false" aria-label="Sound off. Turn on">
+          <svg class="off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4"/></svg>
+          <svg class="on" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="display:none"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11.2 5.5a3.5 3.5 0 0 1 0 5M13 3.8a6 6 0 0 1 0 8.4"/></svg>
+        </button>
+      </span>
+    </div>
     <div class="block-art" aria-hidden="true">
       <div style="left:30px;top:20px;width:120px;height:130px;background:#B07A45;box-shadow:8px 8px 0 #7A4E2A, inset 0 0 0 4px #8C5C33"></div>
       <div style="left:46px;top:40px;width:88px;height:4px;background:#9A6638"></div>
@@ -263,19 +331,10 @@ button.slot canvas { transition: transform 120ms ease; }
     </div>
     <button class="btn-main" id="t-start">START CARVING</button>
     <div class="row2">
+      <button class="btn-ghost" id="t-how">How to play</button>
       <button class="btn-ghost" id="t-shelf">Your shelf</button>
-      <button class="btn-ghost" id="t-reset" hidden>Reset today</button>
     </div>
-    <details class="how">
-      <summary>How to play</summary>
-      <ol>
-        <li>A hidden country sits somewhere on a board of 64.</li>
-        <li>Play a yes/no card from your hand. Every country that doesn't match gets carved away.</li>
-        <li>Guess a country any time. A guess counts as a question, and a wrong one costs 2.</li>
-        <li>Finish at or under par to earn today's carving. Over par, it stays a rough block for good.</li>
-        <li>A new block arrives at midnight.</li>
-      </ol>
-    </details>
+    <button class="btn-ghost" id="t-reset" hidden>Reset today</button>
   </section>
 
   <!-- Game screen -->
@@ -285,8 +344,17 @@ button.slot canvas { transition: transform 120ms ease; }
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
       </button>
       <span class="px" style="font-size:20px;color:var(--gold)">WHITTLE</span>
-      <span class="label" id="g-num">#001</span>
+      <span style="display:flex;gap:8px">
+        <button class="icon-btn sound-btn" id="g-sound" aria-pressed="false" aria-label="Sound off. Turn on">
+          <svg class="off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4"/></svg>
+          <svg class="on" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="display:none"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11.2 5.5a3.5 3.5 0 0 1 0 5M13 3.8a6 6 0 0 1 0 8.4"/></svg>
+        </button>
+        <button class="icon-btn" id="g-how" aria-label="How to play">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5.5 5.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.6V10"/><path d="M8 12.5v.5"/></svg>
+        </button>
+      </span>
     </div>
+    <span class="label" id="g-num" style="text-align:center;margin-top:-8px">#001</span>
     <div class="stats">
       <div class="stat"><span class="label">Questions</span><span class="v" id="g-count">0</span></div>
       <div class="stat"><span class="label">Par</span><span class="v" id="g-par">6</span></div>
@@ -300,7 +368,10 @@ button.slot canvas { transition: transform 120ms ease; }
     <div class="hand-wrap">
       <div class="hand-head">
         <span class="label">Your hand · pick one</span>
-        <button class="btn-ghost" id="g-guess" aria-pressed="false">Guess</button>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span class="swaps" id="g-swaps">2 free swaps left</span>
+          <button class="btn-ghost" id="g-guess" aria-pressed="false">Guess</button>
+        </span>
       </div>
       <div class="hand" id="g-hand"></div>
     </div>
@@ -355,6 +426,36 @@ button.slot canvas { transition: transform 120ms ease; }
       <span><i style="outline:1px dashed #6E4A2B"></i>Missed</span>
     </div>
   </section>
+</div>
+
+<div class="viewer" id="howto" hidden>
+  <div class="viewer-card howto-card" role="dialog" aria-modal="true" aria-labelledby="h-title">
+    <button class="icon-btn viewer-close" id="h-close" aria-label="Close">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>
+    </button>
+    <h2 id="h-title">HOW TO PLAY</h2>
+    <p class="howto-lead">Whittle a board of 64 countries down to the hidden one, in as few questions as you can.</p>
+    <ol class="steps">
+      <li><span class="n">1</span><span><strong>Pick a yes/no card.</strong> Countries that don't match get carved away.
+        <span class="demo" aria-hidden="true">
+          <span class="demo-card">Is it in Europe? <b>NO</b></span>
+          <span class="demo-board">
+            <span class="tile out">France</span><span class="tile">Peru</span><span class="tile out">Italy</span>
+            <span class="tile">Japan</span><span class="tile out">Spain</span><span class="tile">Kenya</span>
+          </span>
+        </span>
+      </span></li>
+      <li><span class="n">2</span><span><strong>Swap weak cards.</strong> Not every card is a good cut. Tap the arrows on a card to trade it for a new one. Your first 2 swaps are free; after that, each swap counts as a question.</span></li>
+      <li><span class="n">3</span><span><strong>Carve down to one, or guess.</strong> Think you know it? Tap Guess and pick a country. A guess counts as a question, and a wrong one counts as two. <strong>Earn the carving:</strong> Finish at or under par and the last block left is carved into a one-of-a-kind figure for your shelf. Go over par and it stays a rough block for good.
+        <span class="demo-carvings" aria-hidden="true">
+          <span><canvas id="h-carved" width="20" height="22"></canvas><small>At or under par</small></span>
+          <span><canvas id="h-rough" width="20" height="22"></canvas><small>Over par</small></span>
+        </span>
+      </span></li>
+    </ol>
+    <button class="btn-main" id="h-go" style="font-size:16px;padding:14px">GOT IT</button>
+    <p class="howto-foot">A new block arrives every day at midnight.</p>
+  </div>
 </div>
 
 <div class="viewer" id="viewer" hidden>
