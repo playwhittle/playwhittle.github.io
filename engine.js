@@ -52,21 +52,31 @@
   }
 
   /* Rebuild the round from the player's actions: [{t:"q", id}, {t:"g", name}]. */
+  /* Rebuild the round from the player's actions: [{t:"q", id}, {t:"g", name}].
+     Tracks which animals are still possible after every move, which drives the meter, the carver and the points. */
+  const START_POINTS = 1000, QUESTION_COST = 50, SHARP_REFUND = 20, MIN_SOLVED_POINTS = 50;
   function replay(puzzle, actions) {
     const log = [];
     const asked = {};
-    const wrong = new Set();
-    const inGroups = [];
-    let count = 0, solved = false;
+    let cand = ANIMALS.slice();
+    let count = 0, solved = false, spent = 0, duds = 0;
     for (const act of actions) {
       if (solved || count >= MAX_QUESTIONS) break;
+      const before = cand.length;
       if (act.t === "q") {
         const q = QBYID[act.id];
         if (!q || asked[q.id]) continue; // repeats are free
         const ans = puzzle.answer.ans[q.id];
         asked[q.id] = ans;
+        cand = cand.filter((a) => a.ans[q.id] === ans);
         count += 1;
-        log.push({ t: "q", id: q.id, q: q.q, ans });
+        const cut = before - cand.length;
+        // Sharp: ruled out at least half of what was still possible. Dud: ruled out almost nothing.
+        const sharp = before >= 4 && cut * 2 >= before;
+        const dud = before > 1 && cut <= Math.floor(before * 0.1);
+        spent += QUESTION_COST - (sharp ? SHARP_REFUND : 0);
+        duds = dud ? duds + 1 : 0;
+        log.push({ t: "q", id: q.id, q: q.q, ans, before, after: cand.length, sharp, dud });
       } else if (act.t === "g") {
         const name = String(act.name || "").trim();
         if (!name) continue;
@@ -74,25 +84,29 @@
         const group = !correct && groupOf(name);
         const close = !!(group && group.includes(puzzle.answer.name));
         count += 1;
-        log.push({ t: "g", name, correct, close, group: !!group });
-        if (correct) solved = true;
-        else if (close) { inGroups.push(group); wrong.add(name.toLowerCase()); }
-        else if (group) group.forEach((n) => wrong.add(n.toLowerCase()));
-        else wrong.add(name.toLowerCase());
+        if (!correct) spent += QUESTION_COST;
+        if (correct) { solved = true; cand = [puzzle.answer]; }
+        else if (close) cand = cand.filter((a) => group.includes(a.name) && a.name.toLowerCase() !== name.toLowerCase());
+        else if (group) cand = cand.filter((a) => !group.includes(a.name));
+        else cand = cand.filter((a) => a.name.toLowerCase() !== name.toLowerCase());
+        if (!correct && !close) duds += 1; else duds = 0;
+        log.push({ t: "g", name, correct, close, group: !!group, before, after: cand.length });
       }
     }
-    const remaining = ANIMALS.filter((a) => !wrong.has(a.name.toLowerCase()) &&
-      inGroups.every((g) => g.includes(a.name)) &&
-      Object.keys(asked).every((id) => a.ans[id] === asked[id]));
     const failed = !solved && count >= MAX_QUESTIONS;
-    return { log, asked, count, solved, failed, remaining, left: MAX_QUESTIONS - count };
+    const points = failed ? 0 : Math.max(MIN_SOLVED_POINTS, START_POINTS - spent);
+    return { log, asked, count, solved, failed, remaining: cand, left: MAX_QUESTIONS - count, points, duds };
   }
 
-  /* How close the player is, 0 (no idea) to 5 (only one animal fits). Drives the carver. */
+  /* How close the player is, 0 (cold) to 5 (only one animal fits). Strict on purpose:
+     a few broad questions shouldn't feel "warm" while ten animals are still in play. */
   function warmth(remainingCount) {
     if (remainingCount <= 1) return 5;
-    const p = 1 - Math.log(remainingCount) / Math.log(ANIMALS.length);
-    return Math.max(0, Math.min(4, Math.floor(p * 5)));
+    if (remainingCount <= 2) return 4;
+    if (remainingCount <= 4) return 3;
+    if (remainingCount <= 7) return 2;
+    if (remainingCount <= 15) return 1;
+    return 0;
   }
 
   /* Par: a sharp questioner who always asks the most informative question, plus 4 for being human. */
@@ -224,7 +238,7 @@
   function grade(count, par) { return count <= par ? "carved" : "rough"; }
 
   const api = { LAUNCH, MAX_QUESTIONS, ANIMALS, QUESTIONS, QBYID, rng, dayNumberFor, dateForDay, puzzleFor, replay, warmth,
-    computePar, suggest, contradiction, grade, tokens, groupOf, poolSize: ANSWER_ORDER.length };
+    computePar, suggest, contradiction, grade, tokens, groupOf, QUESTION_COST, SHARP_REFUND, poolSize: ANSWER_ORDER.length };
   if (typeof module !== "undefined") module.exports = api;
   else root.Whittle = api;
 })(typeof window !== "undefined" ? window : globalThis);

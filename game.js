@@ -43,11 +43,19 @@
     const p = getPuzzle(d);
     const result = {
       mode: MODE, answer: p.answer.name, count: s.count, par: p.par, solved: s.solved,
-      grade: s.solved ? W.grade(s.count, p.par) : "rough", share: shareLine(s)
+      grade: s.solved ? W.grade(s.count, p.par) : "rough", share: shareLine(s), pts: pointsFor(s)
     };
     store.days[d].result = result;
     save();
     return result;
+  }
+  /* Points: start at 1,000; every question or guess costs 50. Solving on your first try keeps all 1,000. */
+  const POINT_COST = 50;
+  function pointsFor(st) { return st.points; }
+  function resultPoints(res) {
+    if (typeof res.pts === "number") return res.pts;
+    if (res.mode !== MODE) return null;
+    return res.solved === false ? 0 : Math.max(0, 1000 - POINT_COST * (res.count - 1));
   }
   function shareLine(s) {
     return s.log.map((e) => (e.t === "g" ? (e.correct ? "🎯" : e.close ? "🟧" : "❌") : { Y: "🟩", N: "🟥", S: "🟨" }[e.ans])).join("");
@@ -65,7 +73,7 @@
   function show(name) {
     screens.forEach((s) => { $("screen-" + s).hidden = s !== name; });
     window.scrollTo(0, 0);
-    if (name !== "game") Scene.stop();
+    if (name !== "game" && name !== "title") Scene.stop();
     if (name === "title") renderTitle();
     if (name === "game") enterGame();
     if (name === "result") renderResult();
@@ -87,6 +95,8 @@
     $("t-par").textContent = puzzle.par;
     $("t-start").textContent = done ? "SEE TODAY'S CARVING" : actionsFor(today).length ? "KEEP GOING" : "START";
     $("t-reset").hidden = !(location.hash === "#dev" || DEMO);
+    const st = stateFor(today);
+    Scene.start($("t-scene"), done ? 5 : st.log.length ? W.warmth(st.remaining.length) : 0);
   }
 
   /* ---------- game ---------- */
@@ -113,11 +123,12 @@
   function renderGame(flashId) {
     const s = stateFor(today);
     $("g-num").textContent = "#" + pad3(today) + " · " + puzzle.category.toUpperCase();
-    $("g-count").textContent = s.count + "/" + W.MAX_QUESTIONS;
+    $("g-count").textContent = s.count;
     $("g-par").textContent = puzzle.par;
-    $("g-left").textContent = s.left;
+    $("g-pts").textContent = pointsFor(s);
     const stage = W.warmth(s.remaining.length);
-    $("g-caption").textContent = HEAT[stage][1];
+    $("g-caption").textContent = s.duds >= 3 ? "He's put the knife down. Ask something that narrows it down."
+      : s.duds === 2 ? "He's slowing down. Those last questions didn't narrow it much." : HEAT[stage][1];
     $("g-heat-word").textContent = HEAT[stage][0];
     $("g-heat").querySelectorAll("i").forEach((pip, i) => pip.classList.toggle("on", i < stage));
     $("g-heat").setAttribute("aria-label", "Warmth: " + HEAT[stage][0].toLowerCase());
@@ -142,6 +153,7 @@
       const ans = li.querySelector(".ans");
       if (e.t === "q") {
         li.querySelector(".t").textContent = e.q;
+        if (e.sharp) { const b = document.createElement("small"); b.className = "sharp"; b.textContent = "+" + W.SHARP_REFUND; b.title = "Sharp question: 20 points back"; li.querySelector(".t").appendChild(b); }
         ans.classList.add(e.ans);
         ans.textContent = { Y: "YES", N: "NO", S: "SOMETIMES" }[e.ans];
       } else {
@@ -273,10 +285,12 @@
     if (last.t === "g" && last.close) { Sound.knock(); showMsg("Close! It's a kind of " + last.name.toLowerCase() + ". Which one?"); }
     else if (last.t === "g") { Sound.thud(); Scene.react("shake"); }
     else Sound.knock();
+    if (last.t === "q" && last.sharp) showMsg("Sharp question! It ruled out " + (last.before - last.after) + " of " + last.before + " possibilities. +" + W.SHARP_REFUND + " back.");
+    Scene.setEnergy(after.duds >= 3 ? 2 : after.duds === 2 ? 1 : 0);
     Scene.setStage(now);
     if (now > was) { Scene.react("carve"); Sound.carve(0.2 + now * 0.12); }
     else if (last.t === "g" && last.close) Scene.react("carve");
-    else if (last.t === "q") Scene.react("ponder");
+    else if (last.t === "q" && !last.dud) Scene.react("ponder");
     $("g-input").focus({ preventScroll: true });
   }
 
@@ -290,7 +304,7 @@
       blade: "#C9D0D4", ink: "#22170F", bubble: "#F3E6CF", shaving: ["#E8C08A", "#D6A468", "#F2D2A2"]
     };
     let ctx = null, canvas = null, raf = 0, stage = 0, last = 0, t = 0;
-    let reaction = null, reactUntil = 0;
+    let reaction = null, reactUntil = 0, energy = 0; // energy: 0 keen, 1 slowing, 2 knife down
     let particles = [], pile = [];
 
     function seedPile(n) {
@@ -301,7 +315,7 @@
     function start(cv, s) {
       canvas = cv; ctx = cv.getContext("2d");
       if (!ctx) return;
-      stage = s; particles = []; reaction = null;
+      stage = s; particles = []; reaction = null; energy = 0;
       seedPile(s * 10);
       stop();
       last = performance.now();
@@ -315,6 +329,7 @@
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
     function setStage(s) { stage = s; if (reduceMotion() && ctx) draw(); }
+    function setEnergy(e) { energy = e; if (reduceMotion() && ctx) draw(); }
     function react(kind) {
       reaction = kind; reactUntil = t + (kind === "finish" ? 2400 : kind === "carve" ? 1400 : 1100);
       if (reduceMotion() && ctx) draw();
@@ -322,12 +337,12 @@
 
     function strokePeriod() {
       if (reaction === "carve" || reaction === "finish") return 140;
-      return [0, 900, 420, 300, 210, 260][stage];
+      return [0, 900, 420, 300, 210, 260][stage] * (energy === 1 ? 2.2 : 1);
     }
     function armFrame() {
       if (reaction === "ponder") return "ponder";
       if (stage === 5 || reaction === "finish") return Math.floor(t / 130) % 2 ? "sandA" : "sandB";
-      if (stage === 0 && reaction !== "carve") return "idle";
+      if ((stage === 0 || energy === 2) && reaction !== "carve") return "idle";
       if (reduceMotion()) return "up";
       return Math.floor(t / strokePeriod()) % 2 ? "down" : "up";
     }
@@ -409,7 +424,7 @@
       // thought bubbles
       if (reaction === "ponder" || reaction === "shake") bubble(hx + 14, 10, "?");
       else if (reaction === "carve" || reaction === "finish") bubble(hx + 14, 10, "!");
-      else if (stage === 0 && Math.floor(t / 2500) % 3 === 2) bubble(hx + 14, 10, ".");
+      else if ((stage === 0 || energy === 2) && Math.floor(t / 2500) % 3 === 2) bubble(hx + 14, 10, ".");
     }
     function draw() {
       if (!ctx) return;
@@ -423,9 +438,24 @@
       ctx.fillStyle = glow; ctx.fillRect(0, 0, 200, 100);
       px(118, 0, 1, 11, "#3A2A20"); px(112, 11, 13, 3, "#5C4330"); px(114, 14, 9, 2, "#5C4330");
       px(116, 16, 5, 2, ["#6E5A3A", "#9C7A3E", "#C9963E", "#E8B04B", "#F5C86A", "#FFE29A"][stage]);
-      // tool rack
-      px(140, 22, 50, 3, "#5C4330");
-      [[146, 10], [156, 14], [166, 8], [178, 12]].forEach(([x, h], i) => { px(x, 25, 3, 6, "#6E4A2B"); px(x, 31, i % 2 ? 2 : 3, h, "#8A949A"); });
+      // night window
+      px(149, 7, 36, 28, "#3A2818");
+      px(151, 9, 32, 24, "#0F1A30"); px(151, 21, 32, 12, "#13223A");
+      [[154, 12], [160, 24], [170, 11], [157, 17], [178, 26], [165, 19]].forEach(([x, y], i) => {
+        const on = reduceMotion() || (Math.floor(t / 700) + i) % 5 !== 0;
+        if (on) px(x, y, 1, 1, i % 2 ? "#CFD8E8" : "#9FB0CC");
+      });
+      px(175, 12, 5, 5, "#F2E6C2"); px(177, 12, 3, 2, "#0F1A30"); px(178, 14, 2, 1, "#0F1A30");
+      px(166, 9, 1, 24, "#3A2818"); px(151, 20, 32, 1, "#3A2818");
+      px(147, 35, 40, 2, "#5C4330");
+      // shelf of finished carvings
+      px(136, 50, 58, 2, "#6E4A2B"); px(140, 52, 2, 4, "#4A3020"); px(188, 52, 2, 4, "#4A3020");
+      [[142, [2, 4, 4, 3]], [154, [3, 5, 5, 5, 3]], [168, [2, 3, 4, 4]], [180, [4, 4, 2, 4, 4]]].forEach(([x, cols]) => {
+        cols.forEach((h, i) => { px(x + i, 50 - h, 1, h, i === 0 ? "#F2D2A2" : "#D6A468"); });
+      });
+      // tools on the wall
+      px(56, 9, 40, 2, "#5C4330");
+      [[60, 9], [70, 12], [80, 7], [90, 10]].forEach(([x, h], i) => { px(x, 11, 3, 5, "#6E4A2B"); px(x, 16, i % 2 ? 2 : 3, h, "#8A949A"); });
       // floor and shavings pile
       px(0, 92, 200, 8, C.floor); px(0, 92, 200, 1, C.floorLine);
       pile.forEach((p, i) => px(p.x, 91 - Math.floor(i / 30), 2, 1, p.c));
@@ -436,7 +466,7 @@
       drawCarver();
       particles.forEach((p) => px(Math.round(p.x), Math.round(p.y), p.dust ? 1 : 2, 1, p.c));
     }
-    return { start, stop, setStage, react };
+    return { start, stop, setStage, setEnergy, react };
   })();
 
   /* ---------- carvings: one figure per answer ---------- */
@@ -511,7 +541,9 @@
     const res = resultFor(today);
     if (!res) { show("game"); return; }
     const s = stateFor(today);
-    $("r-num").textContent = "WHITTLE #" + pad3(today) + " · " + (res.mode === MODE ? "ANIMALS" : "COUNTRIES");
+    $("r-num").textContent = "#" + pad3(today) + " · " + (res.mode === MODE ? "ANIMALS" : "COUNTRIES");
+    const pts = resultPoints(res);
+    $("r-pts").textContent = pts === null ? "—" : pts;
     drawCarving($("r-carving"), res.answer, res.grade);
     $("r-answer").textContent = res.answer.toUpperCase();
     const diff = res.count - res.par;
@@ -531,7 +563,10 @@
       row.className = "cut";
       row.innerHTML = '<span class="label">' + (i + 1) + '</span><span class="q"></span><b class="ans"></b>';
       const ans = row.querySelector(".ans");
-      if (e.t === "q") { row.querySelector(".q").textContent = e.q; ans.classList.add(e.ans); ans.textContent = { Y: "YES", N: "NO", S: "SOMETIMES" }[e.ans]; }
+      if (e.t === "q") {
+        row.querySelector(".q").textContent = e.q; ans.classList.add(e.ans); ans.textContent = { Y: "YES", N: "NO", S: "SOMETIMES" }[e.ans];
+        if (e.sharp) { const b = document.createElement("small"); b.className = "sharp"; b.textContent = "+" + W.SHARP_REFUND; row.querySelector(".q").appendChild(b); }
+      }
       else { row.querySelector(".q").textContent = guessLine(e); ans.classList.add(e.correct ? "hit" : e.close ? "S" : "miss"); ans.textContent = e.correct ? "YES!" : e.close ? "CLOSE" : "NO"; }
       cuts.appendChild(row);
     });
@@ -555,7 +590,9 @@
     const res = resultFor(today);
     const diff = res.count - res.par;
     const vs = res.solved === false ? "stumped" : diff === 0 ? "at par" : diff < 0 ? Math.abs(diff) + " under par" : diff + " over par";
-    return "Whittle #" + today + " · Animals 🐾\n" + res.share + "\n" + (res.solved === false ? "20/20" : res.count + " questions") + " · " + vs + "\n🔥 Streak " + streak();
+    const pts = resultPoints(res);
+    return "Whittle #" + today + (res.mode === MODE ? " · Animals 🐾\n" : " · Countries 🌍\n") + res.share + "\n" +
+      (pts === null ? "" : pts + " pts · ") + (res.solved === false ? "20/20" : res.count + " questions") + " · " + vs + "\n🔥 Streak " + streak();
   }
   async function share() {
     const text = shareText();
@@ -656,10 +693,11 @@
     $("v-kind").textContent = res.grade === "rough" ? "Rough block" : "Carving";
     drawCarving($("v-carving"), res.answer, res.grade);
     $("v-name").textContent = res.answer;
-    $("v-meta").textContent = "WHITTLE #" + pad3(d) + " · " + FULL_MONTHS[date.getMonth()].toUpperCase() + " " + date.getDate() + ", " + date.getFullYear();
+    $("v-meta").textContent = "#" + pad3(d) + " · " + FULL_MONTHS[date.getMonth()].toUpperCase() + " " + date.getDate() + ", " + date.getFullYear();
     const diff = res.count - res.par;
+    const vpts = resultPoints(res);
     $("v-score").textContent = res.solved === false ? "Stumped after 20 questions" :
-      res.count + " questions · " + (diff === 0 ? "at par" : diff < 0 ? Math.abs(diff) + " under par" : diff + " over par") + " (par " + res.par + ")";
+      (vpts === null ? "" : vpts + " points · ") + res.count + " questions · " + (diff === 0 ? "at par" : diff < 0 ? Math.abs(diff) + " under par" : diff + " over par") + " (par " + res.par + ")";
     $("v-trail").textContent = res.share || "";
     fillNotes($("v-notes"), notesFor(res.answer));
     $("viewer").hidden = false;
@@ -674,7 +712,7 @@
   $("viewer").addEventListener("click", (e) => { if (e.target.id === "viewer") closeViewer(); });
 
   /* ---------- how to play: opens by itself on a first visit and whenever the rules change ---------- */
-  const HOWTO_VERSION = 4;
+  const HOWTO_VERSION = 6;
   let howReturn = null;
   function openHowto(from) {
     howReturn = from || null;

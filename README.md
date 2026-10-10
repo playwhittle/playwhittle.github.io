@@ -2,6 +2,13 @@
 
 A daily game of 20 Questions. Every day there's one hidden animal. Ask yes/no questions in your own words, watch the woodcarver get to work as you get closer, and name the animal in as few questions as you can. Solve it at or under par to earn the day's carving for your shelf.
 
+## Scoring
+
+- You start with 1,000 points. Every question or wrong guess costs 50; the correct guess is free.
+- A sharp question, one that rules out at least half of the animals still possible, gives 20 back.
+- Solving always scores at least 50. Running out of 20 questions scores 0.
+- The meter tracks how many animals are still possible. The woodcarver slows down after questions that narrow nothing, and gets back to work after a useful one.
+
 Play it at https://playwhittle.github.io
 
 ## How it runs

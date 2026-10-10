@@ -7,31 +7,29 @@
 <meta name="description" content="Whittle: a daily game of 20 questions. Ask yes/no questions in your own words and name the hidden animal.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one narrow column; a woodcarver's bench at the top, your questions below, and the question box pinned to the bottom while you play. */
+/* Layout: atmosphere on top, calm underneath. One pixel-art workshop scene carries the personality;
+   everything you touch below it is quiet: plain warm-dark ground, 1px lines, a readable sans, small spaced mono labels. */
 :root {
-  --wall: #1E140D;
-  --panel: #33241A;
-  --line: #5C4330;
-  --ink: #F3E6CF;
-  --muted: #BFA98A;
-  --gold: #E8B04B;
-  --gold-deep: #9C6F22;
+  --bg: #13100D;
+  --surface: #1B1713;
+  --surface-2: #231D17;
+  --line: #322921;
+  --line-strong: #4A3D31;
+  --ink: #F1E8DA;
+  --muted: #A39684;
+  --faint: #7A6D5E;
+  --gold: #E6A84A;
+  --gold-ink: #1A140E;
+  --yes: #93C47D;
+  --no: #E8937A;
+  --some: #E2C266;
   --tile: #E0B27A;
-  --tile-edge: #A8723E;
-  --hollow: #5A3A20;
-  --hollow-ink: #9A7450;
-  --slab-a: #7F5230;
-  --slab-b: #93613A;
-  --frame: #4A3020;
-  --card: #F3E6CF;
-  --card-ink: #22170F;
-  --card-edge: #BFA98A;
-  --yes: #9CCB7A;
-  --no: #E8B04B;
-  --display: 'Silkscreen', 'Courier New', monospace;
-  --body: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --logo: 'Silkscreen', 'Courier New', monospace;
+  --sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --r: 10px;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -39,201 +37,199 @@
 html, body { min-height: 100%; }
 body {
   margin: 0;
-  background:
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.32) 0 2px, transparent 2px 97px),
-    repeating-linear-gradient(0deg, rgba(255,220,170,0.025) 0 1px, transparent 1px 7px),
-    var(--wall);
+  background: radial-gradient(120% 60% at 50% -10%, rgba(230,168,74,0.07), transparent 60%), var(--bg);
   color: var(--ink);
-  font-family: var(--body);
-  font-size: 14px;
+  font-family: var(--sans);
+  font-size: 15px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.wrap { overflow-x: clip; max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 32px; display: flex; flex-direction: column; gap: 18px; }
-.screen { display: flex; flex-direction: column; gap: 18px; }
-.label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.px { font-family: var(--display); }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap { overflow-x: clip; max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 32px; display: flex; flex-direction: column; gap: 16px; }
+.screen { display: flex; flex-direction: column; gap: 16px; }
+.label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.px { font-family: var(--logo); }
 
-/* Shared controls */
+/* Controls */
 .btn-main {
-  display: block; width: 100%; border: none; background: var(--gold); color: var(--card-ink);
-  font-family: var(--display); font-size: 20px; padding: 16px; box-shadow: 0 6px 0 var(--gold-deep);
-  transition: transform 80ms ease, box-shadow 80ms ease;
+  display: block; width: 100%; border: none; border-radius: var(--r); background: var(--gold); color: var(--gold-ink);
+  font-family: var(--mono); font-weight: 500; font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; padding: 15px;
+  transition: transform 80ms ease, filter 120ms ease;
 }
-.btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--gold-deep); }
+.btn-main:hover { filter: brightness(1.06); }
+.btn-main:active { transform: translateY(1px); }
 .btn-ghost {
-  background: transparent; border: 2px solid var(--line); color: var(--ink);
-  padding: 10px 14px; min-height: 44px; font-size: 13px;
+  background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r); color: var(--ink);
+  padding: 10px 14px; min-height: 44px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
 }
 .btn-ghost:hover { border-color: var(--muted); }
-.btn-ghost[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; background: transparent; border: 2px solid var(--line); }
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.icon-btn:hover { color: var(--ink); border-color: var(--line-strong); }
 .icon-btn svg { width: 16px; height: 16px; }
-.sound-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
-.title-meta { align-items: center; }
+.sound-btn[aria-pressed="true"] { color: var(--gold); border-color: rgba(230,168,74,0.5); }
+.wordmark { font-family: var(--logo); font-size: 18px; color: var(--gold); letter-spacing: 0.08em; }
 
 /* Title */
-.title-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
-.block-art { position: relative; width: 180px; height: 170px; margin: 18px auto 0; }
-.block-art div { position: absolute; }
+.title-meta { display: flex; justify-content: space-between; align-items: center; }
+.title-meta .label { color: var(--faint); }
 .logo {
-  margin: 8px 0 0; text-align: center; font-family: var(--display); font-weight: 400;
-  font-size: clamp(44px, 14vw, 64px); line-height: 1; color: var(--gold);
-  text-shadow: 4px 4px 0 #7A4E2A; letter-spacing: 2px;
+  margin: 10px 0 0; text-align: center; font-family: var(--logo); font-weight: 400;
+  font-size: clamp(46px, 15vw, 72px); line-height: 1; color: var(--gold); letter-spacing: 0.04em;
+  text-shadow: 0 3px 0 #7A4E2A, 0 0 28px rgba(230,168,74,0.25);
 }
-.tagline { text-align: center; margin: 0; color: #D9C6A6; }
-.today-card { border: 2px solid var(--line); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.today-card .v { font-family: var(--display); font-size: 20px; }
-.how { border: 2px solid var(--line); padding: 0 16px; }
-.how summary { padding: 12px 0; cursor: pointer; font-size: 13px; color: var(--muted); }
-.how ol { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; color: #D9C6A6; }
+.tagline { text-align: center; margin: -4px 0 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.today-line { margin: 0; text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+.today-line b { color: var(--ink); font-weight: 500; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
-/* Game header */
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.stat { border: 2px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; }
-.stat .v { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
-
-/* The carver's bench: he works harder the closer you get */
-.scene { border: 3px solid var(--frame); background: #150E09; box-shadow: 6px 6px 0 #0E0905; }
+/* The workshop scene: the one place with texture and detail */
+.scene { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #150E09; }
 .scene canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; }
-.scene-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; padding: 8px 12px; background: var(--panel); border-top: 2px solid var(--frame); flex-wrap: wrap; }
-.caption { margin: 0; font-size: 12.5px; color: #D9C6A6; flex: 1 1 220px; min-width: 0; }
+.scene-foot { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; border-top: 1px solid var(--line); background: var(--surface); }
+.caption { margin: 0; font-size: 14px; color: var(--ink); }
 .heat { display: flex; align-items: center; gap: 4px; }
-.heat i { width: 9px; height: 14px; background: #3A2A20; display: inline-block; }
-.heat i.on { background: linear-gradient(180deg, #FFD27A, #E8742F); box-shadow: 0 0 6px rgba(232,116,47,0.6); }
-.heat .word { font-family: var(--display); font-size: 12px; color: var(--gold); margin-left: 6px; min-width: 7ch; }
+.heat i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); display: block; }
+.heat i.on { background: linear-gradient(90deg, #F2C062, #E8742F); box-shadow: 0 0 8px rgba(232,116,47,0.45); }
+.heat .word { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--gold); margin-left: 8px; min-width: 7.5ch; text-align: right; }
+
+/* Stats as one quiet line */
+.stats { display: flex; justify-content: space-between; gap: 8px; padding: 2px 2px 0; }
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat .v { font-family: var(--mono); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); }
+.stat .v.gold { color: var(--gold); }
 
 /* Your questions so far */
-.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.log li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; background: var(--panel); font-size: 13px; }
-.log .n { font-family: var(--display); color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.log li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.log .n { font-family: var(--mono); color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .log li.flash { animation: flash 900ms ease-out; }
-@keyframes flash { 0% { background: #5C4330; } 100% { background: var(--panel); } }
-.ans { font-family: var(--display); font-size: 12px; padding: 3px 8px; white-space: nowrap; }
-.ans.Y { background: #2F4A26; color: #C6E8AE; }
-.ans.N { background: #4E2A1E; color: #F5BCA2; }
-.ans.S { background: #4C401D; color: #F2DB9C; }
-.ans.miss { background: #3A2A20; color: #F5BCA2; }
-.ans.hit { background: var(--gold); color: var(--card-ink); }
-.starter { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 2px dashed var(--line); }
-.starter p { margin: 0; font-size: 13px; color: #D9C6A6; }
+@keyframes flash { 0% { background: rgba(230,168,74,0.14); } 100% { background: transparent; } }
+.ans { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.12em; padding: 4px 9px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.ans.Y { color: var(--yes); border-color: rgba(147,196,125,0.45); background: rgba(147,196,125,0.08); }
+.ans.N { color: var(--no); border-color: rgba(232,147,122,0.45); background: rgba(232,147,122,0.08); }
+.ans.S { color: var(--some); border-color: rgba(226,194,102,0.45); background: rgba(226,194,102,0.08); }
+.ans.miss { color: var(--no); border-color: var(--line-strong); }
+.ans.hit { color: var(--gold-ink); background: var(--gold); }
+.sharp { margin-left: 8px; font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--gold); white-space: nowrap; }
+.starter { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--r); }
+.starter p { margin: 0; font-size: 14px; color: var(--muted); }
 .starter .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip-btn { background: transparent; border: 2px solid var(--line); color: var(--ink); padding: 6px 10px; font-size: 12.5px; min-height: 40px; }
+.chip-btn { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink); padding: 8px 14px; font-size: 14px; min-height: 40px; }
 .chip-btn:hover { border-color: var(--gold); color: var(--gold); }
 
 /* The question box */
 .ask {
   position: sticky; bottom: 0; z-index: 2;
-  margin-inline: -16px; padding: 14px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, rgba(30,20,13,0) 0, rgba(30,20,13,0.95) 16px, rgba(30,20,13,0.99));
+  margin-inline: -16px; padding: 18px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(19,16,13,0) 0, rgba(19,16,13,0.96) 18px, var(--bg));
   display: flex; flex-direction: column; gap: 8px;
 }
-.ask-row { display: flex; gap: 8px; }
-.ask input {
-  flex: 1; min-width: 0; min-height: 50px; padding: 10px 12px; border: none; border-radius: 0;
-  background: var(--card); color: var(--card-ink); font: inherit; font-size: 15px; box-shadow: 0 4px 0 var(--card-edge);
-}
-.ask input::placeholder { color: #8A7358; }
-.ask input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.ask .send { width: auto; padding: 0 16px; font-size: 15px; box-shadow: 0 4px 0 var(--gold-deep); }
-.ask-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+.ask-meta { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.ask-row { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; padding: 5px 5px 5px 18px; }
+.ask-row:focus-within { border-color: var(--gold); }
+.ask input { flex: 1; min-width: 0; min-height: 42px; padding: 0; border: none; background: transparent; color: var(--ink); font: inherit; font-size: 16px; }
+.ask input::placeholder { color: var(--faint); }
+.ask input:focus-visible { outline: none; }
+.ask .send { width: auto; border-radius: 999px; padding: 0 18px; min-height: 42px; font-size: 12px; }
 .sugg { display: flex; flex-direction: column; gap: 6px; }
 .sugg button {
   display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left;
-  background: #2A1D14; border: 2px solid var(--line); color: var(--ink); padding: 8px 10px; font-size: 13px; min-height: 42px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); color: var(--ink); padding: 9px 14px; font-size: 14px; min-height: 44px;
 }
 .sugg button:hover, .sugg button.top { border-color: var(--gold); }
-.sugg small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sugg small { font-family: var(--mono); color: var(--faint); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
 .sugg .guess small { color: var(--gold); }
-.ask-msg { margin: 0; font-size: 12.5px; color: #D9C6A6; }
-.warn { border: 2px solid var(--gold); background: #2A1D14; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.ask-msg { margin: 0; font-size: 13.5px; color: var(--muted); }
+.warn { border: 1px solid rgba(230,168,74,0.6); border-radius: var(--r); background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
 .warn .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Result */
-.result-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
-.carving { width: 160px; height: 176px; image-rendering: pixelated; margin-top: 8px; }
-.answer { margin: 6px 0 0; font-family: var(--display); font-size: clamp(32px, 10vw, 46px); line-height: 1.05; color: var(--gold); text-shadow: 3px 3px 0 #7A4E2A; text-wrap: balance; }
-.verdict { margin: 0; color: #D9C6A6; max-width: 34ch; }
-.cuts { background: var(--panel); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.cut { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.result-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding-top: 4px; }
+.carving-stage { width: 100%; display: grid; place-items: center; padding: 18px 0 10px; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(60% 70% at 50% 45%, rgba(255,200,130,0.12), transparent 70%), #150E09; }
+.carving { width: 150px; height: 165px; image-rendering: pixelated; }
+.answer { margin: 10px 0 0; font-family: var(--logo); font-weight: 400; font-size: clamp(30px, 9vw, 42px); line-height: 1.05; color: var(--gold); text-wrap: balance; }
+.verdict { margin: 0; color: var(--muted); max-width: 36ch; font-size: 15px; }
+.result-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; }
+.result-stats .stat { align-items: center; text-align: center; }
+.result-stats .stat + .stat { border-left: 1px solid var(--line); }
+.cuts { display: flex; flex-direction: column; }
+.cuts > .label { margin-bottom: 6px; }
+.cut { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+.cut .label { letter-spacing: 0; color: var(--faint); }
 .notes { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-note { border: 1px solid var(--line); padding: 4px 8px; font-size: 11px; color: #D9C6A6; }
-.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.countdown { text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.copy-fallback { width: 100%; min-height: 110px; background: var(--panel); color: var(--ink); border: 2px solid var(--line); font: inherit; font-size: 13px; padding: 10px; }
+.chip-note { border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; color: var(--muted); }
+.countdown { text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; color: var(--faint); font-variant-numeric: tabular-nums; }
+.copy-fallback { width: 100%; min-height: 110px; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r); font-family: var(--mono); font-size: 13px; padding: 10px; }
 
 /* Shelf */
-.shelf-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.shelf-stats .stat { align-items: center; padding: 8px 4px; }
+.shelf-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; }
+.shelf-stats .stat { align-items: center; }
+.shelf-stats .stat + .stat { border-left: 1px solid var(--line); }
 .month { display: flex; flex-direction: column; gap: 14px; }
-.month h2 { margin: 0; font-family: var(--display); font-size: 16px; font-weight: 400; text-align: center; }
+.month h2 { margin: 0; font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.2em; color: var(--muted); text-align: center; }
 .shelf-row { display: flex; flex-direction: column; }
 .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 6px; align-items: end; }
 .slot { display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; border: none; padding: 0; }
 .slot canvas { width: 48px; height: 53px; image-rendering: pixelated; }
-.slot .date { font-size: 10px; color: var(--muted); }
-.slot .ghost { width: 40px; height: 40px; outline: 2px dashed #6E4A2B; outline-offset: -2px; }
-.slot .ghost.today { outline: 2px solid var(--gold); }
-.plank { height: 12px; background: linear-gradient(180deg, #93613A, #7F5230); box-shadow: 0 6px 0 #4A2E18; }
-.names { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 6px 0; }
-.names div { text-align: center; font-size: 10px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
-.names .t { font-size: 9px; color: var(--muted); }
-.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; font-size: 10px; color: var(--muted); }
-.legend span { display: inline-flex; align-items: center; gap: 5px; }
-.legend i { width: 10px; height: 10px; display: inline-block; }
-
-/* Close-up view of one carving */
-button.slot { cursor: pointer; border-radius: 2px; }
-button.slot:hover canvas { transform: translateY(-3px); }
+.slot .date { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+.slot .ghost { width: 40px; height: 40px; border: 1px dashed var(--line-strong); border-radius: 6px; }
+.slot .ghost.today { border: 1px solid var(--gold); }
+.plank { height: 8px; border-radius: 2px; background: linear-gradient(180deg, #8E5E36, #6E4A2B); }
+.names { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 10px 6px 0; }
+.names div { text-align: center; font-size: 12px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.names .t { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+button.slot { cursor: pointer; border-radius: 6px; }
 button.slot canvas { transition: transform 120ms ease; }
+button.slot:hover canvas { transform: translateY(-3px); }
+
+/* Pop-ups */
 .viewer {
   position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
   padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
-  background: rgba(12, 8, 5, 0.86); overflow-y: auto;
+  background: rgba(10, 8, 6, 0.8); backdrop-filter: blur(3px); overflow-y: auto;
 }
 .viewer-card {
-  position: relative; width: 100%; max-width: 420px; padding: 20px 20px 24px;
-  background:
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 6px),
-    var(--panel);
-  border: 3px solid var(--frame); box-shadow: 8px 8px 0 #120B06;
+  position: relative; width: 100%; max-width: 420px; padding: 22px 20px 22px;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px;
   display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
   animation: lift 220ms ease-out;
 }
-@keyframes lift { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
-.viewer-close { position: absolute; top: 10px; right: 10px; }
-.stage {
-  width: 100%; display: grid; place-items: center; padding: 18px 0 6px;
-  background: radial-gradient(ellipse 55% 60% at 50% 45%, rgba(255,214,150,0.18), transparent 70%);
-}
-.stage canvas { width: 220px; height: 242px; image-rendering: pixelated; }
-.viewer h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(26px, 8vw, 34px); color: var(--gold); text-wrap: balance; line-height: 1.1; }
-.viewer .meta { margin: 0; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
-.viewer .score { margin: 0; font-size: 14px; }
-.viewer .trail { font-size: 20px; letter-spacing: 2px; }
+@keyframes lift { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.viewer-close { position: absolute; top: 12px; right: 12px; }
+.stage { width: 100%; display: grid; place-items: center; padding: 16px 0 6px; border-radius: 10px; background: radial-gradient(55% 60% at 50% 45%, rgba(255,214,150,0.14), transparent 70%); }
+.stage canvas { width: 200px; height: 220px; image-rendering: pixelated; }
+.viewer h2 { margin: 0; font-family: var(--logo); font-weight: 400; font-size: clamp(24px, 7vw, 32px); color: var(--gold); text-wrap: balance; line-height: 1.1; }
+.viewer .meta { margin: 0; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--faint); }
+.viewer .score { margin: 0; font-size: 15px; }
+.viewer .trail { font-size: 18px; letter-spacing: 2px; }
 .viewer .notes { justify-content: center; }
-
-/* How to play */
 .howto-card { text-align: left; align-items: stretch; gap: 16px; }
-.howto-card h2 { text-align: center; }
+.howto-card h2 { text-align: center; font-size: 22px; }
 .howto-lead { margin: 0; text-align: center; color: var(--ink); font-size: 15px; }
 .steps { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; color: #D9C6A6; }
-.steps .n { font-family: var(--display); color: var(--gold); font-size: 16px; line-height: 1.4; }
-.steps strong { color: var(--ink); }
-.demo-q { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.demo-q span { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: #2A1D14; padding: 6px 10px; font-size: 12.5px; color: var(--ink); }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14.5px; color: var(--muted); }
+.steps .n { font-family: var(--mono); color: var(--gold); font-size: 13px; line-height: 1.6; }
+.steps strong { color: var(--ink); font-weight: 600; }
+.demo-q { display: flex; flex-direction: column; margin-top: 8px; border-top: 1px solid var(--line); }
+.demo-q span { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; color: var(--ink); }
 .demo-carvings { display: flex; gap: 22px; margin-top: 10px; }
 .demo-carvings > span { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.demo-carvings canvas { width: 60px; height: 66px; image-rendering: pixelated; }
-.demo-carvings small { font-size: 10px; color: var(--muted); }
-.howto-foot { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
+.demo-carvings canvas { width: 56px; height: 62px; image-rendering: pixelated; }
+.demo-carvings small { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+.howto-foot { margin: 0; text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--faint); }
 
+@media (max-width: 420px) {
+  .result-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .result-stats .stat:nth-child(3) { border-left: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .viewer-card, .log li.flash { animation: none; }
-  .btn-main { transition: none; }
+  .btn-main, button.slot canvas { transition: none; }
 }
 </style>
 </head>
@@ -243,39 +239,24 @@ button.slot canvas { transition: transform 120ms ease; }
   <!-- Title screen -->
   <section class="screen" id="screen-title">
     <div class="title-meta">
-      <span id="t-num">DAILY #001</span>
-      <span style="display:flex;align-items:center;gap:12px"><span id="t-streak">STREAK 0</span>
+      <span class="label" id="t-num">DAILY #001</span>
+      <span style="display:flex;align-items:center;gap:12px"><span class="label" id="t-streak">STREAK 0</span>
         <button class="icon-btn sound-btn" id="t-sound" aria-pressed="false" aria-label="Sound off. Turn on">
           <svg class="off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4"/></svg>
           <svg class="on" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="display:none"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11.2 5.5a3.5 3.5 0 0 1 0 5M13 3.8a6 6 0 0 1 0 8.4"/></svg>
         </button>
       </span>
     </div>
-    <div class="block-art" aria-hidden="true">
-      <div style="left:30px;top:20px;width:120px;height:130px;background:#B07A45;box-shadow:8px 8px 0 #7A4E2A, inset 0 0 0 4px #8C5C33"></div>
-      <div style="left:46px;top:40px;width:88px;height:4px;background:#9A6638"></div>
-      <div style="left:46px;top:66px;width:60px;height:4px;background:#9A6638"></div>
-      <div style="left:70px;top:92px;width:64px;height:4px;background:#9A6638"></div>
-      <div style="left:46px;top:118px;width:44px;height:4px;background:#9A6638"></div>
-      <div style="left:118px;top:20px;width:32px;height:32px;background:var(--wall)"></div>
-      <div style="left:134px;top:52px;width:16px;height:16px;background:var(--wall)"></div>
-      <div style="left:150px;top:10px;width:14px;height:6px;background:#E0B27A;transform:rotate(-30deg)"></div>
-      <div style="left:162px;top:34px;width:10px;height:6px;background:#E0B27A;transform:rotate(25deg)"></div>
-      <div style="left:6px;top:150px;width:12px;height:6px;background:#E0B27A;transform:rotate(15deg)"></div>
-      <div style="left:140px;top:156px;width:16px;height:6px;background:#E0B27A;transform:rotate(-12deg)"></div>
-    </div>
     <h1 class="logo">WHITTLE</h1>
-    <p class="tagline">Twenty questions. One hidden animal.</p>
-    <div class="today-card">
-      <div><div class="label">Today's block</div><div class="v" id="t-cat">ANIMALS</div></div>
-      <div style="text-align:right"><div class="label">Par</div><div class="v" id="t-par">6</div></div>
-    </div>
+    <p class="tagline">Twenty questions · One animal</p>
+    <div class="scene"><canvas id="t-scene" width="200" height="100" role="img" aria-label="A woodcarver's workshop at night"></canvas></div>
+    <p class="today-line">Today · <b id="t-cat">ANIMALS</b> · Par <b id="t-par">9</b></p>
     <button class="btn-main" id="t-start">START CARVING</button>
     <div class="row2">
       <button class="btn-ghost" id="t-how">How to play</button>
       <button class="btn-ghost" id="t-shelf">Your shelf</button>
     </div>
-    <button class="btn-ghost" id="t-reset" hidden>Reset today</button>
+    <button class="btn-ghost" id="t-reset" hidden>Reset today (testing)</button>
   </section>
 
   <!-- Game screen -->
@@ -284,7 +265,7 @@ button.slot canvas { transition: transform 120ms ease; }
       <button class="icon-btn" id="g-back" aria-label="Back to title">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
       </button>
-      <span class="px" style="font-size:20px;color:var(--gold)">WHITTLE</span>
+      <span class="wordmark">WHITTLE</span>
       <span style="display:flex;gap:8px">
         <button class="icon-btn sound-btn" id="g-sound" aria-pressed="false" aria-label="Sound off. Turn on">
           <svg class="off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4"/></svg>
@@ -295,12 +276,6 @@ button.slot canvas { transition: transform 120ms ease; }
         </button>
       </span>
     </div>
-    <span class="label" id="g-num" style="text-align:center;margin-top:-8px">#001 · ANIMALS</span>
-    <div class="stats">
-      <div class="stat"><span class="label">Questions</span><span class="v" id="g-count">0/20</span></div>
-      <div class="stat"><span class="label">Par</span><span class="v" id="g-par">10</span></div>
-      <div class="stat"><span class="label">Left</span><span class="v" id="g-left">20</span></div>
-    </div>
     <div class="scene">
       <canvas id="g-scene" width="200" height="100" role="img" aria-label="A woodcarver at his bench"></canvas>
       <div class="scene-foot">
@@ -308,13 +283,18 @@ button.slot canvas { transition: transform 120ms ease; }
         <div class="heat" id="g-heat" aria-label="Warmth"><i></i><i></i><i></i><i></i><i></i><span class="word" id="g-heat-word">COLD</span></div>
       </div>
     </div>
+    <div class="stats">
+      <div class="stat"><span class="label" id="g-num">#001 · ANIMALS</span><span class="v"><span id="g-count">0</span><span style="color:var(--faint)">/20</span></span></div>
+      <div class="stat" style="align-items:center"><span class="label">Par</span><span class="v" id="g-par">9</span></div>
+      <div class="stat" style="align-items:flex-end"><span class="label">Points</span><span class="v gold" id="g-pts">1000</span></div>
+    </div>
     <div class="starter" id="g-starter">
       <p>Today's answer is an animal. Ask a yes/no question in your own words, or try one of these:</p>
       <div class="chips" id="g-chips"></div>
     </div>
     <ol class="log" id="g-log" aria-label="Your questions"></ol>
     <form class="ask" id="g-ask" autocomplete="off">
-      <div class="ask-meta"><span>Ask a yes/no question, or type an animal to guess</span></div>
+      <div class="ask-meta">Ask yes/no · or type an animal to guess</div>
       <div class="ask-row">
         <label for="g-input" class="label" style="position:absolute;left:-9999px">Your question or guess</label>
         <input id="g-input" type="text" maxlength="120" placeholder="Can it fly?" enterkeyhint="send" autocapitalize="sentences">
@@ -332,18 +312,19 @@ button.slot canvas { transition: transform 120ms ease; }
       <button class="icon-btn" id="r-back" aria-label="Back to title">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
       </button>
-      <span class="label" id="r-num">WHITTLE #001 · ANIMALS</span>
+      <span class="label" id="r-num">#001 · ANIMALS</span>
       <span style="width:44px"></span>
     </div>
     <div class="result-head">
-      <canvas class="carving" id="r-carving" width="20" height="22" aria-hidden="true"></canvas>
+      <div class="carving-stage"><canvas class="carving" id="r-carving" width="20" height="22" aria-hidden="true"></canvas></div>
       <h1 class="answer" id="r-answer">PERU</h1>
       <p class="verdict" id="r-verdict"></p>
     </div>
-    <div class="stats">
-      <div class="stat" style="align-items:center"><span class="label">Questions</span><span class="v" id="r-count">5</span></div>
-      <div class="stat" style="align-items:center"><span class="label">Vs par</span><span class="v" id="r-vs">E</span></div>
-      <div class="stat" style="align-items:center"><span class="label">Streak</span><span class="v" id="r-streak">1</span></div>
+    <div class="result-stats">
+      <div class="stat"><span class="label">Points</span><span class="v gold" id="r-pts">0</span></div>
+      <div class="stat"><span class="label">Questions</span><span class="v" id="r-count">0</span></div>
+      <div class="stat"><span class="label">Vs par</span><span class="v" id="r-vs">E</span></div>
+      <div class="stat"><span class="label">Streak</span><span class="v" id="r-streak">0</span></div>
     </div>
     <div class="cuts" id="r-cuts"></div>
     <div>
@@ -351,8 +332,8 @@ button.slot canvas { transition: transform 120ms ease; }
       <div class="notes" id="r-notes"></div>
     </div>
     <div class="row2">
-      <button class="btn-main" id="r-share" style="font-size:16px;padding:14px">SHARE</button>
-      <button class="btn-ghost" id="r-shelf" style="font-family:var(--display);font-size:16px">SHELF</button>
+      <button class="btn-main" id="r-share">Share</button>
+      <button class="btn-ghost" id="r-shelf">Shelf</button>
     </div>
     <textarea class="copy-fallback" id="r-copy" readonly hidden aria-label="Result to copy"></textarea>
     <div class="countdown" id="r-countdown">Next block in --:--:--</div>
@@ -364,7 +345,7 @@ button.slot canvas { transition: transform 120ms ease; }
       <button class="icon-btn" id="s-back" aria-label="Back to title">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
       </button>
-      <span class="px" style="font-size:22px;color:var(--gold)">YOUR SHELF</span>
+      <span class="wordmark">YOUR SHELF</span>
       <span style="width:44px"></span>
     </div>
     <div class="shelf-stats" id="s-stats"></div>
@@ -372,7 +353,7 @@ button.slot canvas { transition: transform 120ms ease; }
     <div class="legend">
       <span><i style="background:var(--tile)"></i>Carved · at or under par</span>
       <span><i style="background:#6E4A2B"></i>Rough · over par</span>
-      <span><i style="outline:1px dashed #6E4A2B"></i>Missed</span>
+      <span><i style="border:1px dashed var(--line-strong)"></i>Missed</span>
     </div>
   </section>
 </div>
@@ -385,22 +366,22 @@ button.slot canvas { transition: transform 120ms ease; }
     <h2 id="h-title">HOW TO PLAY</h2>
     <p class="howto-lead">It's 20 Questions with a hidden animal. Find it in as few questions as you can.</p>
     <ol class="steps">
-      <li><span class="n">1</span><span><strong>Ask anything yes/no</strong>, in your own words. You'll get Yes, No or Sometimes.
+      <li><span class="n">01</span><span><strong>Ask anything yes/no</strong>, in your own words. You'll get Yes, No or Sometimes.
         <span class="demo-q" aria-hidden="true">
           <span>Is it a mammal? <b class="ans N">NO</b></span>
           <span>Does it live in water? <b class="ans Y">YES</b></span>
         </span>
       </span></li>
-      <li><span class="n">2</span><span><strong>Watch the carver.</strong> The closer you get, the harder he works on the block.</span></li>
-      <li><span class="n">3</span><span><strong>Guess when you know it.</strong> Just type the animal. Every question and every guess counts, and you have 20.</span></li>
-      <li><span class="n">4</span><span><strong>Earn the carving.</strong> Solve it at or under par and the carver finishes it for your shelf. Over par, it stays a rough block for good.
+      <li><span class="n">02</span><span><strong>Watch the carver.</strong> The closer you get, the harder he works. Ask questions that go nowhere and he slows down.</span></li>
+      <li><span class="n">03</span><span><strong>Guess when you know it.</strong> Just type the animal. You start with 1,000 points and every question or guess costs 50, but a <strong>sharp question</strong> that rules out half the possibilities gives 20 back. You have 20 tries.</span></li>
+      <li><span class="n">04</span><span><strong>Earn the carving.</strong> Solve it at or under par and the carver finishes it for your shelf. Over par, it stays a rough block for good.
         <span class="demo-carvings" aria-hidden="true">
           <span><canvas id="h-carved" width="20" height="22"></canvas><small>At or under par</small></span>
           <span><canvas id="h-rough" width="20" height="22"></canvas><small>Over par</small></span>
         </span>
       </span></li>
     </ol>
-    <button class="btn-main" id="h-go" style="font-size:16px;padding:14px">GOT IT</button>
+    <button class="btn-main" id="h-go">Got it</button>
     <p class="howto-foot">A new animal arrives every day at midnight.</p>
   </div>
 </div>
